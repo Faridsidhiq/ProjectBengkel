@@ -13,34 +13,39 @@ class _KatalogBarangPageState extends State<KatalogBarangPage> {
   String _searchQuery = "";
   String _selectedKategori = "Semua";
 
-  // 🛠️ List kategori DISINKRONKAN dengan dropdown milik admin + pilihan "Semua"
+  // ✅ SINKRONKAN DENGAN ADMIN (SAMAKAN PERSIS)
   final List<String> kategoriList = [
-    "Semua", 
-    "Oli & Cairan", 
-    "Filter", 
-    "Rem & Kaki-kaki", 
-    "Mesin & Pengapian", 
-    "Kelistrikan & Aki"
+    "Semua",
+    "Oli",
+    "Grease",
+    "Filter Oli",
+    "Filter Udara",
+    "Filter AC",
+    "Filter Bahan Bakar",
+    "Kampas Rem",
+    "Pompa",
+    "Additive",
+    "Spare Part",
   ];
 
-  // Format Rupiah bawaan agar tampilan harga rapi seperti di admin
   final formatRupiah = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-  // Logika gambar aset lokal sebagai cadangan jika admin tidak upload gambar atau tautan rusak
+  // ✅ PERBAIKI LOGIKA GAMBAR AGAR SESUAI DENGAN KATEGORI BARU
   String _getGambarKategori(String kategori) {
     switch (kategori) {
-      case "Oli & Cairan":
+      case "Oli":
+      case "Additive":
+        return "assets/shell_yellow.png"; // Ganti sesuai aset Anda
+      case "Filter Oli":
+      case "Filter Udara":
+      case "Filter AC":
+      case "Filter Bahan Bakar":
         return "assets/shell_yellow.png"; 
-      case "Filter":
-        return "assets/shell_yellow.png";    
-      case "Rem & Kaki-kaki":
-        return "assets/shell_yellow.png"; 
-      case "Mesin & Pengapian":
-        return "assets/shell_yellow.png"; 
-      case "Kelistrikan & Aki":
-        return "assets/shell_yellow.png"; 
+      case "Kampas Rem":
+      case "Grease":
+        return "assets/shell_yellow.png";
       default:
-        return "assets/shell_yellow.png"; 
+        return "assets/shell_yellow.png"; // Gambar default
     }
   }
 

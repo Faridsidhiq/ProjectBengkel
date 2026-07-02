@@ -12,6 +12,27 @@ class ServisMobilePage extends StatefulWidget {
 class _ServisMobilePageState extends State<ServisMobilePage> {
   final String? userEmail = FirebaseAuth.instance.currentUser?.email;
 
+  Future<void> _sembunyikanDariAktif(String docId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('spk')
+          .doc(docId)
+          .update({'is_hidden': true});
+          
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Telah dipindahkan ke Riwayat Servis di menu Akun"),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Gagal update status: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,15 +66,84 @@ class _ServisMobilePageState extends State<ServisMobilePage> {
                   return _buildEmptyState();
                 }
 
-                final listSpk = snapshot.data!.docs;
+                final listSpkBerjalan = snapshot.data!.docs.where((doc) {
+                  final data = doc.data();
+                  final status = (data['status'] ?? '').toString().toLowerCase();
+                  final isHidden = data['is_hidden'] == true;
+                  return status != 'selesai' && !isHidden; 
+                }).toList();
 
-                return ListView.builder(
+                final listSpkSelesai = snapshot.data!.docs.where((doc) {
+                  final data = doc.data();
+                  final status = (data['status'] ?? '').toString().toLowerCase();
+                  final isHidden = data['is_hidden'] == true;
+                  return status == 'selesai' && !isHidden; 
+                }).take(2).toList(); 
+
+                if (listSpkBerjalan.isEmpty && listSpkSelesai.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  itemCount: listSpk.length,
-                  itemBuilder: (context, index) {
-                    final data = listSpk[index].data();
-                    return _TimelineCard(data: data);
-                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      
+                      if (listSpkBerjalan.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12, left: 4),
+                          child: Text(
+                            "Sedang Diproses",
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
+                          ),
+                        ),
+                        ...listSpkBerjalan.map((doc) => _TimelineCard(data: doc.data())),
+                      ],
+
+                      if (listSpkSelesai.isNotEmpty) ...[
+                        if (listSpkBerjalan.isNotEmpty) const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1.5)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                "Baru Saja Selesai",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1.5)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        ...listSpkSelesai.map((doc) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onTap: () => _sembunyikanDariAktif(doc.id),
+                                child: _TimelineCard(data: doc.data(), isTappable: true),
+                              ),
+                            ),
+                          );
+                        }),
+                        
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8, bottom: 24),
+                            child: Text(
+                              "Ketuk kartu di atas untuk menyembunyikannya",
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                            ),
+                          ),
+                        )
+                      ],
+                    ],
+                  ),
                 );
               },
             ),
@@ -61,7 +151,9 @@ class _ServisMobilePageState extends State<ServisMobilePage> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -77,7 +169,7 @@ class _ServisMobilePageState extends State<ServisMobilePage> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Riwayat kendaraan Anda akan muncul di sini.",
+            "Kendaraan yang sedang diservis akan muncul di sini.",
             style: TextStyle(color: Colors.grey.shade500),
           ),
         ],
@@ -86,12 +178,11 @@ class _ServisMobilePageState extends State<ServisMobilePage> {
   }
 }
 
-// ==========================================
-// WIDGET KARTU TIMELINE DINAMIS
-// ==========================================
 class _TimelineCard extends StatefulWidget {
   final Map<String, dynamic> data;
-  const _TimelineCard({required this.data});
+  final bool isTappable;
+  
+  const _TimelineCard({required this.data, this.isTappable = false});
 
   @override
   State<_TimelineCard> createState() => _TimelineCardState();
@@ -100,11 +191,27 @@ class _TimelineCard extends StatefulWidget {
 class _TimelineCardState extends State<_TimelineCard> {
   bool _isChecklistExpanded = false;
 
+  // FUNGSI KONVERSI WAKTU BARU
+  String _formatEstimasi(String estimasiMentah) {
+    int totalMenit = int.tryParse(estimasiMentah) ?? 0;
+    if (totalMenit <= 0) return "Fleksibel";
+    
+    final hari = totalMenit ~/ 1440;
+    final sisaSetelahHari = totalMenit % 1440;
+    final jam = sisaSetelahHari ~/ 60;
+    final menit = sisaSetelahHari % 60;
+
+    final parts = <String>[];
+    if (hari > 0) parts.add("$hari Hari");
+    if (jam > 0) parts.add("$jam Jam");
+    if (menit > 0) parts.add("$menit Menit");
+    
+    return parts.join(" ");
+  }
+
   @override
   Widget build(BuildContext context) {
     final rawStatus = (widget.data['status'] ?? 'Menunggu').toString().toLowerCase();
-    
-    // Logika Status yang sudah diperbarui (termasuk 'berjalan')
     bool isProses = rawStatus == 'sedang dikerjakan' || rawStatus == 'proses' || rawStatus == 'berjalan';
     bool isSelesai = rawStatus == 'selesai';
     if (isSelesai) isProses = true; 
@@ -114,21 +221,23 @@ class _TimelineCardState extends State<_TimelineCard> {
     final tanggal = widget.data['tanggal'] ?? '';
     final jamMasuk = widget.data['jam_masuk'] ?? '';
     final namaMontir = widget.data['nama_montir'] ?? 'Menunggu Mekanik';
-    final estimasi = widget.data['estimasi'] ?? '-';
+    final estimasi = widget.data['estimasi_waktu'] ?? '-';
     final itemsPekerjaan = widget.data['items'] as List<dynamic>? ?? [];
 
-    // Hitung progress
     int totalItems = itemsPekerjaan.length;
     int selesaiItems = itemsPekerjaan.where((item) {
       return item['status']?.toString().toLowerCase() == 'selesai' || isSelesai;
     }).length;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: EdgeInsets.only(bottom: widget.isTappable ? 0 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: widget.isTappable ? Colors.green.shade200 : Colors.grey.shade200, 
+          width: widget.isTappable ? 1.5 : 1.0
+        ),
         boxShadow: [
           BoxShadow(color: Colors.blue.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 10)),
         ],
@@ -136,7 +245,6 @@ class _TimelineCardState extends State<_TimelineCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- HEADER ---
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -177,29 +285,22 @@ class _TimelineCardState extends State<_TimelineCard> {
               ],
             ),
           ),
-
-          // --- BODY (Vertical Timeline) ---
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                // STEP 1
                 _buildStep(
                   title: "Penerimaan",
                   subtitle: Text("Selesai • $jamMasuk", style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   isActive: true,
                   isLast: false,
                 ),
-                
-                // STEP 2 (Bisa di-klik dengan Preview Progress)
                 _buildStep(
                   title: "Sedang Dikerjakan",
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text("Mekanik: $namaMontir", style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                      
-                      // PREVIEW: Muncul hanya saat sedang diproses dan list belum di-expand
                       if (isProses && itemsPekerjaan.isNotEmpty && !_isChecklistExpanded) ...[
                         const SizedBox(height: 8),
                         Row(
@@ -232,25 +333,18 @@ class _TimelineCardState extends State<_TimelineCard> {
                   isExpandable: isProses && itemsPekerjaan.isNotEmpty,
                   isExpanded: _isChecklistExpanded,
                   onTap: () {
-                    if (isProses && itemsPekerjaan.isNotEmpty) {
-                      setState(() {
-                        _isChecklistExpanded = !_isChecklistExpanded;
-                      });
+                    if (isProses && itemsPekerjaan.isNotEmpty && !widget.isTappable) {
+                      setState(() { _isChecklistExpanded = !_isChecklistExpanded; });
                     }
                   },
                   child: AnimatedSize(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                     child: _isChecklistExpanded 
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: _buildChecklistContainer(itemsPekerjaan, isSelesai),
-                          )
+                        ? Padding(padding: const EdgeInsets.only(top: 8), child: _buildChecklistContainer(itemsPekerjaan, isSelesai))
                         : const SizedBox(width: double.infinity),
                   ),
                 ),
-
-                // STEP 3
                 _buildStep(
                   title: "Selesai",
                   subtitle: Text(isSelesai ? "Siap diambil" : "Estimasi selesai belum tersedia", style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
@@ -260,8 +354,6 @@ class _TimelineCardState extends State<_TimelineCard> {
               ],
             ),
           ),
-
-          // --- FOOTER ---
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -275,7 +367,7 @@ class _TimelineCardState extends State<_TimelineCard> {
                 Icon(isSelesai ? Icons.verified : Icons.timer_outlined, color: Colors.white, size: 22),
                 const SizedBox(width: 10),
                 Text(
-                  isSelesai ? "KENDARAAN SELESAI DISERVIS" : "Estimasi Selesai : $estimasi",
+                  isSelesai ? "SIAP DIAMBIL / SELESAI" : "Estimasi Selesai : ${_formatEstimasi(estimasi)}", // Menggunakan formatter
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
                 ),
               ],
@@ -285,8 +377,6 @@ class _TimelineCardState extends State<_TimelineCard> {
       ),
     );
   }
-
-  // --- KOMPONEN DALAM KARTU ---
 
   Widget _buildStep({
     required String title,
@@ -305,27 +395,19 @@ class _TimelineCardState extends State<_TimelineCard> {
           Column(
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 24, height: 24,
                 decoration: BoxDecoration(
                   color: isActive ? Colors.green : Colors.grey.shade300,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    if (isActive) BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 6, spreadRadius: 1)
-                  ],
                 ),
                 child: isActive ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
               ),
               if (!isLast)
                 Expanded(
                   child: Container(
-                    width: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isActive ? Colors.green : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                    width: 3, margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(color: isActive ? Colors.green : Colors.grey.shade200, borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
             ],
@@ -347,14 +429,7 @@ class _TimelineCardState extends State<_TimelineCard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: isActive ? Colors.black87 : Colors.grey.shade500,
-                                ),
-                              ),
+                              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isActive ? Colors.black87 : Colors.grey.shade500)),
                               const SizedBox(height: 2),
                               subtitle,
                             ],
@@ -363,10 +438,7 @@ class _TimelineCardState extends State<_TimelineCard> {
                         if (isExpandable)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Icon(
-                              isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                              color: Colors.blue.shade700,
-                            ),
+                            child: Icon(isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.blue.shade700),
                           ),
                       ],
                     ),
@@ -381,21 +453,14 @@ class _TimelineCardState extends State<_TimelineCard> {
     );
   }
 
-  // Desain Detail Sesuai Foto 2 (Tanpa Kotak, Text Coret)
   Widget _buildChecklistContainer(List<dynamic> itemsPekerjaan, bool spkSelesai) {
     if (itemsPekerjaan.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Divider(),
-        ),
-        Text(
-          "DAFTAR PEKERJAAN",
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.0),
-        ),
+        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider()),
+        Text("DAFTAR PEKERJAAN", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.0)),
         const SizedBox(height: 16),
         ...itemsPekerjaan.map((item) {
           bool itemSelesai = item['status']?.toString().toLowerCase() == 'selesai';
@@ -405,11 +470,7 @@ class _TimelineCardState extends State<_TimelineCard> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               children: [
-                Icon(
-                  itemSelesai ? Icons.check_circle : Icons.circle_outlined,
-                  color: itemSelesai ? Colors.green : Colors.grey.shade400,
-                  size: 20,
-                ),
+                Icon(itemSelesai ? Icons.check_circle : Icons.circle_outlined, color: itemSelesai ? Colors.green : Colors.grey.shade400, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -418,17 +479,12 @@ class _TimelineCardState extends State<_TimelineCard> {
                       fontSize: 13,
                       color: itemSelesai ? Colors.black54 : Colors.black87,
                       decoration: itemSelesai ? TextDecoration.lineThrough : null,
-                      decorationColor: Colors.grey.shade500,
                     ),
                   ),
                 ),
                 Text(
-                  itemSelesai ? "Selesai" : (item['estimasi'] != null ? "Est. ${item['estimasi']} mnt" : ""),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: itemSelesai ? Colors.green : Colors.grey.shade400,
-                    fontWeight: itemSelesai ? FontWeight.bold : FontWeight.normal,
-                  ),
+                  itemSelesai ? "Selesai" : (item['estimasi'] != null ? "Est. ${_formatEstimasi(item['estimasi'].toString())}" : ""),
+                  style: TextStyle(fontSize: 11, color: itemSelesai ? Colors.green : Colors.grey.shade400, fontWeight: itemSelesai ? FontWeight.bold : FontWeight.normal),
                 ),
               ],
             ),
@@ -457,14 +513,8 @@ class _TimelineCardState extends State<_TimelineCard> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold),
-      ),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
+      child: Text(label, style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }
