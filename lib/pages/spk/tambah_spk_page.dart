@@ -23,6 +23,11 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
   final TextEditingController biayaJasaController = TextEditingController();
   final TextEditingController sparepartSearchController = TextEditingController();
 
+  // ===== ESTIMASI WAKTU (PENGGANTI DROPDOWN selectedDurasi) =====
+  // Disimpan dalam MENIT, auto-terisi saat pilih jenis servis,
+  // tapi tetap bisa diedit manual sama seperti biayaJasaController.
+  final TextEditingController estimasiController = TextEditingController(text: "30");
+
   List<String> selectedJenisServis = [];
 
   // ===== STATE MONTIR =====
@@ -35,7 +40,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
 
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
-  String selectedDurasi = "30 Menit";
 
   bool isLoading = false;
 
@@ -53,6 +57,22 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
     "Overhaul Automatic Transmisi": 2500000,
   };
 
+  // ===== ESTIMASI WAKTU PER JENIS SERVIS (DALAM MENIT) =====
+  // Silakan sesuaikan angkanya dengan hasil bimbingan/diskusi tim bengkel.
+  final Map<String, int> jenisServisDanEstimasi = {
+    "Tune Up & Scanning System": 90,       // 1 jam 30 menit
+    "Ganti Oli & Filter Oli": 30,          // 30 menit
+    "Service Rem / Brake 4 Roda": 60,      // 1 jam
+    "Service Kaki-Kaki": 120,              // 2 jam
+    "Electrical System": 120,              // 2 jam
+    "Service Kopling / Clutch System": 240,// 4 jam
+    "Ganti Timing Belt": 180,              // 3 jam
+    "Overhaul Mesin": 1440,                // 1 hari
+    "Overhaul Manual Transmisi": 480,      // 8 jam
+    "Overhaul Gardan": 300,                // 5 jam
+    "Overhaul Automatic Transmisi": 1440,  // 1 hari
+  };
+
   int get totalHarga {
     int total = 0;
     for (var item in selectedSpareparts) {
@@ -61,12 +81,30 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
     return total;
   }
 
+  // Dipanggil setiap kali centang/uncentang jenis servis
   void _updateBiayaJasa() {
     int total = 0;
     for (var servis in selectedJenisServis) {
       total += jenisServisDanHarga[servis] ?? 0;
     }
     biayaJasaController.text = total.toString();
+  }
+
+  // Auto-isi total estimasi waktu (menit) dari jenis servis yang dipilih.
+  // Tetap bisa diedit manual oleh user lewat estimasiController.
+  void _updateEstimasi() {
+    int totalMenit = 0;
+    for (var servis in selectedJenisServis) {
+      totalMenit += jenisServisDanEstimasi[servis] ?? 0;
+    }
+    // Kalau belum ada servis dipilih, default 30 menit
+    estimasiController.text = (totalMenit == 0 ? 30 : totalMenit).toString();
+  }
+
+  // Dipanggil bareng tiap kali user centang/uncentang FilterChip jenis servis
+  void _onJenisServisChanged() {
+    _updateBiayaJasa();
+    _updateEstimasi();
   }
 
   @override
@@ -160,6 +198,12 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
       return;
     }
 
+    final estimasiMenit = int.tryParse(estimasiController.text.trim());
+    if (estimasiMenit == null || estimasiMenit <= 0) {
+      _showSnackbar("Estimasi waktu tidak valid", isError: true);
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
@@ -179,21 +223,18 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
       final urutan = (spkSnapshot.docs.length + 1).toString().padLeft(4, '0');
       final noSpk = "SPK-$tahunBulan-$urutan";
 
-      String estimasiMentah = selectedDurasi;
-      if (selectedDurasi == "1 Jam") estimasiMentah = "60";
-      else if (selectedDurasi == "2 Jam") estimasiMentah = "120";
-      else if (selectedDurasi == "3 Jam") estimasiMentah = "180";
-      else if (selectedDurasi == "5 Jam") estimasiMentah = "300";
-      else if (selectedDurasi == "1 Hari") estimasiMentah = "1440";
-      else {
-        estimasiMentah = selectedDurasi.replaceAll(RegExp(r'[^0-9]'), '');
-        if (estimasiMentah.isEmpty) estimasiMentah = "30";
-      }
+      // String estimasi menit mentah (dipakai juga sebagai estimasi per item)
+      final estimasiMentah = estimasiMenit.toString();
+      // Label estimasi yang enak dibaca, misal "1 Jam 30 Menit"
+      final estimasiLabel = _formatEstimasi(estimasiMenit);
 
       List<Map<String, dynamic>> itemsServisArray = selectedJenisServis.map((item) {
+        // Ambil waktu per item dari map jenisServisDanEstimasi
+        final estimasiPerItem = (jenisServisDanEstimasi[item] ?? 0).toString(); 
+        
         return {
           'nama': item,
-          'estimasi': estimasiMentah,
+          'estimasi': estimasiPerItem, // <--- SEKARANG PAKAI WAKTU SPESIFIK
           'status': 'Belum Mulai',
         };
       }).toList();
@@ -219,7 +260,7 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
         'biaya_jasa': biayaJasa,
         'tanggal': "${selectedDate!.day.toString().padLeft(2, '0')}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.year}",
         'waktu': waktuFormat,
-        'estimasi': selectedDurasi,
+        'estimasi': estimasiLabel,
         'estimasi_waktu': estimasiMentah,
         'jam_masuk': waktuFormat,
         'status': 'Menunggu',
@@ -417,6 +458,7 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                       children: jenisServisDanHarga.entries.map((entry) {
                         final servis = entry.key;
                         final harga = entry.value;
+                        final estimasiMenit = jenisServisDanEstimasi[servis] ?? 0;
                         final isSelected = selectedJenisServis.contains(servis);
 
                         return FilterChip(
@@ -434,6 +476,13 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                                   color: isSelected ? Colors.white70 : Colors.grey,
                                 ),
                               ),
+                              Text(
+                                "Estimasi: ${_formatEstimasi(estimasiMenit)}",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isSelected ? Colors.white70 : Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                           selected: isSelected,
@@ -444,7 +493,7 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                               } else {
                                 selectedJenisServis.remove(servis);
                               }
-                              _updateBiayaJasa();
+                              _onJenisServisChanged();
                             });
                           },
                         );
@@ -497,6 +546,7 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                   const SizedBox(height: 15),
 
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Column(
@@ -580,31 +630,28 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
 
                       const SizedBox(width: 20),
 
+                      // ===== ESTIMASI PENGERJAAN — SEKARANG SEPERTI BIAYA JASA =====
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("ESTIMASI PENGERJAAN",
+                            const Text("ESTIMASI PENGERJAAN (Menit)",
                                 style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
                             const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: selectedDurasi,
+                            TextField(
+                              controller: estimasiController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                               decoration: InputDecoration(
+                                suffixText: "Menit",
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                helperText: estimasiController.text.isEmpty
+                                    ? null
+                                    : "≈ ${_formatEstimasi(int.tryParse(estimasiController.text) ?? 0)}",
+                                helperMaxLines: 2,
                               ),
-                              items: const [
-                                DropdownMenuItem(value: "30 Menit", child: Text("30 Menit")),
-                                DropdownMenuItem(value: "1 Jam", child: Text("1 Jam")),
-                                DropdownMenuItem(value: "2 Jam", child: Text("2 Jam")),
-                                DropdownMenuItem(value: "3 Jam", child: Text("3 Jam")),
-                                DropdownMenuItem(value: "5 Jam", child: Text("5 Jam")),
-                                DropdownMenuItem(value: "1 Hari", child: Text("1 Hari")),
-                                DropdownMenuItem(value: "2 Hari", child: Text("2 Hari")),
-                                DropdownMenuItem(value: "3 Hari", child: Text("3 Hari")),
-                                DropdownMenuItem(value: "1 Minggu", child: Text("1 Minggu")),
-                              ],
-                              onChanged: (value) => setState(() => selectedDurasi = value!),
+                              onChanged: (_) => setState(() {}), // refresh helperText "≈ X Jam Y Menit"
                             ),
                           ],
                         ),
@@ -711,7 +758,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label terpilih
         if (selectedMontir != null)
           Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -741,8 +787,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
               ],
             ),
           ),
-
-        // Grid kartu montir
         Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -768,7 +812,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                 ),
                 child: Column(
                   children: [
-                    // Avatar lingkaran dengan inisial
                     CircleAvatar(
                       radius: 28,
                       backgroundColor: isSelected ? Colors.white24 : Colors.blue.shade50,
@@ -852,8 +895,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
-        // --- Search bar ---
         TextField(
           controller: sparepartSearchController,
           onChanged: (val) => _searchSparepart(val),
@@ -875,7 +916,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
           ),
         ),
 
-        // --- Hasil pencarian sebagai card ---
         if (_isSearchingSparepart)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -1030,7 +1070,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
             ),
           ),
 
-        // --- Tabel sparepart yang sudah dipilih ---
         if (selectedSpareparts.isNotEmpty) ...[
           const SizedBox(height: 20),
           Row(
@@ -1063,7 +1102,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                 },
                 border: TableBorder.all(color: Colors.grey.shade200),
                 children: [
-                  // Header
                   TableRow(
                     decoration: BoxDecoration(color: Colors.blue.shade50),
                     children: const [
@@ -1076,7 +1114,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                       _TableHeader(""),
                     ],
                   ),
-                  // Rows
                   ...selectedSpareparts.map((item) {
                     final harga = int.parse(item['harga'].toString());
                     final jumlah = item['jumlah'] as int;
@@ -1089,17 +1126,14 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                         color: melebihiStok ? Colors.red.shade50 : Colors.white,
                       ),
                       children: [
-                        // Nama
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           child: Text(item['nama'], style: const TextStyle(fontSize: 13)),
                         ),
-                        // Kode
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           child: Text(item['kode'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         ),
-                        // Stok
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           child: Text(
@@ -1111,7 +1145,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                             ),
                           ),
                         ),
-                        // Jumlah — tombol +/-
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                           child: Row(
@@ -1153,12 +1186,10 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                             ],
                           ),
                         ),
-                        // Harga satuan
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           child: Text("Rp ${_formatRupiah(harga)}", style: const TextStyle(fontSize: 13)),
                         ),
-                        // Subtotal
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           child: Text(
@@ -1166,7 +1197,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        // Hapus
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: IconButton(
@@ -1183,7 +1213,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
             ),
           ),
 
-          // Warning stok
           if (selectedSpareparts.any((item) => (item['jumlah'] as int) > (item['stok'] as int)))
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -1199,7 +1228,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
               ),
             ),
 
-          // Total sparepart ringkas
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Align(
@@ -1240,6 +1268,21 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]}.',
     );
+  }
+
+  // Ubah menit jadi label yang enak dibaca, misal 90 -> "1 Jam 30 Menit"
+  String _formatEstimasi(int totalMenit) {
+    if (totalMenit <= 0) return "0 Menit";
+    final hari = totalMenit ~/ 1440;
+    final sisaSetelahHari = totalMenit % 1440;
+    final jam = sisaSetelahHari ~/ 60;
+    final menit = sisaSetelahHari % 60;
+
+    final parts = <String>[];
+    if (hari > 0) parts.add("$hari Hari");
+    if (jam > 0) parts.add("$jam Jam");
+    if (menit > 0) parts.add("$menit Menit");
+    return parts.isEmpty ? "0 Menit" : parts.join(" ");
   }
 
   Widget sectionTitle(IconData icon, String title) {

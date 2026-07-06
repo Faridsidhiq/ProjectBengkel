@@ -194,8 +194,8 @@ class _TambahServisPageState extends State<TambahServisPage> {
                 children: [
                   Text("Nomor Rekening", style: TextStyle(fontWeight: FontWeight.bold)),
                   SizedBox(height: 5),
-                  Text("BCA : 1234567890"),
-                  Text("A/N Jimu Mitsubishi"),
+                  Text("BCA : 2940825272"),
+                  Text("A/N Sarjimu"),
                 ],
               ),
             ),

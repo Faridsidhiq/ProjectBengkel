@@ -1,162 +1,201 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // Jangan lupa tambahkan package intl di pubspec.yaml untuk format tanggal
+import 'package:firebase_auth/firebase_auth.dart';
 
-class RiwayatServisPage extends StatefulWidget {
+class RiwayatServisPage extends StatelessWidget {
   const RiwayatServisPage({super.key});
 
   @override
-  State<RiwayatServisPage> createState() => _RiwayatServisPageState();
-}
-
-class _RiwayatServisPageState extends State<RiwayatServisPage> {
-  final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-
-  // Fungsi untuk memformat Timestamp Firebase menjadi tanggal yang mudah dibaca
-  String formatTanggal(Timestamp? timestamp) {
-    if (timestamp == null) return '-';
-    DateTime dateTime = timestamp.toDate();
-    return DateFormat('dd MMM yyyy, HH:mm').format(dateTime);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (currentUid.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text("Sesi login tidak valid.")),
-      );
-    }
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text("Riwayat Kerja Anda"),
-        backgroundColor: Colors.blue.shade800,
-        foregroundColor: Colors.white,
+        title: const Text("Riwayat Servis", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
         centerTitle: true,
-        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        // Mengambil semua SPK milik montir aktif yang statusnya sudah 'Selesai'
-        stream: FirebaseFirestore.instance
-            .collection('spk')
-            .where('montir_uid', isEqualTo: currentUid)
-            .where('status', isEqualTo: 'Selesai')
-            .orderBy('waktu_selesai', descending: true) // Menampilkan yang paling baru selesai di atas
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text("Terjadi kesalahan: ${snapshot.error}"));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: user == null
+          ? const Center(child: Text("Anda belum login."))
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('spk')
+                  .where('email', isEqualTo: user.email)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history_toggle_off_rounded, size: 70, color: Colors.grey.shade400),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Belum ada riwayat servis yang diselesaikan.",
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                  ),
-                ],
-              ),
-            );
-          }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildKosong();
+                }
 
-          return ListView.builder(
-            itemCount: docs.length,
-            padding: const EdgeInsets.all(12),
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
+                // Filter data yang statusnya 'Selesai'
+                final dokumenSelesai = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['status'] == 'Selesai';
+                }).toList();
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(color: Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, 2))
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- Bagian Atas: No Plat & Badge Selesai ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          data['plat'] ?? '-',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.check_circle, color: Colors.green, size: 12),
-                              SizedBox(width: 4),
-                              Text("Selesai", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
+                if (dokumenSelesai.isEmpty) {
+                  return _buildKosong();
+                }
 
-                    // --- Bagian Tengah: Detail Informasi Mobil ---
-                    _buildRowInfo("Kendaraan", data['kendaraan'] ?? '-'),
-                    _buildRowInfo("Jenis Servis", data['jenis_servis'] ?? '-'),
-                    _buildRowInfo("Keluhan Awal", data['keluhan'] ?? '-'),
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: dokumenSelesai.length,
+                  itemBuilder: (context, index) {
+                    final data = dokumenSelesai[index].data() as Map<String, dynamic>;
                     
-                    const SizedBox(height: 8),
-                    // --- Bagian Bawah: Jam Selesai Kerja ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(Icons.access_time_rounded, size: 13, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(
-                          "Rampung: ${formatTanggal(data['waktu_selesai'] as Timestamp?)}",
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontStyle: FontStyle.italic),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // BAGIAN ATAS: PLAT & STATUS
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.directions_car, color: Colors.blue.shade700, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      data['plat'] ?? 'Tanpa Plat',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue.shade900),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade100,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    "✓ Selesai",
+                                    style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 11),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // BAGIAN TENGAH: DETAIL KENDARAAN & KELUHAN
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDetailRow(Icons.branding_watermark, "Kendaraan", data['kendaraan'] ?? 'Tidak Diketahui'),
+                                const SizedBox(height: 10),
+                                _buildDetailRow(Icons.build_circle, "Jenis Servis", data['jenis_servis']?.toString() ?? 'Servis Umum'),
+                                const SizedBox(height: 16),
+                                
+                                // Garis Pembatas Putus-putus
+                                Row(
+                                  children: List.generate(
+                                    40,
+                                    (index) => Expanded(
+                                      child: Container(
+                                        color: index % 2 == 0 ? Colors.grey.shade300 : Colors.transparent,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                
+                                const Text("Catatan / Keluhan:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54)),
+                                const SizedBox(height: 6),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade200)
+                                  ),
+                                  child: Text(
+                                    data['keluhan'] ?? 'Tidak ada catatan tambahan',
+                                    style: const TextStyle(fontSize: 13, height: 1.4, color: Colors.black87),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 
-  Widget _buildRowInfo(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(label, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+  // Ganti fungsi pembantu ini di file riwayat_servis_page.dart
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade500),
+        const SizedBox(width: 8),
+        // TAMBAHKAN EXPANDED DI SINI
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              const SizedBox(height: 2),
+              Text(
+                value, 
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+              ),
+            ],
           ),
-          const Text(": ", style: TextStyle(color: Colors.grey, fontSize: 12)),
-          Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w500)),
+        )
+      ],
+    );
+  }
+
+  // Tampilan ketika riwayat kosong
+  Widget _buildKosong() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
+            child: Icon(Icons.history_toggle_off, size: 60, color: Colors.blue.shade300),
+          ),
+          const SizedBox(height: 20),
+          Text("Belum Ada Riwayat", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              "Kendaraan Anda yang telah selesai diservis akan muncul di sini sebagai arsip digital.", 
+              style: TextStyle(color: Colors.grey.shade500, height: 1.4), 
+              textAlign: TextAlign.center
+            ),
           ),
         ],
       ),

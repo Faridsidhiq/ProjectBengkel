@@ -11,6 +11,22 @@ class ProsesServisPage extends StatefulWidget {
 }
 
 class _ProsesServisPageState extends State<ProsesServisPage> {
+  
+  // Fungsi bantuan untuk mengubah "90" menjadi "1 Jam 30 Menit"
+  String _formatEstimasi(String estimasiMentah) {
+    int totalMenit = int.tryParse(estimasiMentah) ?? 0;
+    if (totalMenit <= 0) return "Waktu Fleksibel";
+    
+    final jam = totalMenit ~/ 60;
+    final menit = totalMenit % 60;
+
+    final parts = <String>[];
+    if (jam > 0) parts.add("$jam Jam");
+    if (menit > 0) parts.add("$menit Menit");
+    
+    return parts.join(" ");
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
@@ -36,7 +52,7 @@ class _ProsesServisPageState extends State<ProsesServisPage> {
         String namaKendaraan = docData['kendaraan'] ?? '-';
         String nomorPlat = docData['plat'] ?? '-';
         String namaPelangan = docData['nama_pelanggan'] ?? docData['pelanggan'] ?? 'Umum';
-        String estimasiGlobal = docData['estimasi_waktu'] ?? '30';
+        String estimasiGlobal = (docData['estimasi_waktu'] ?? '30').toString();
         
         // Ambil status utama SPK saat ini untuk validasi kontrol
         String statusUtamaSekarang = docData['status'] ?? 'Menunggu';
@@ -45,12 +61,11 @@ class _ProsesServisPageState extends State<ProsesServisPage> {
         List<Map<String, dynamic>> listPekerjaanDariAdmin = [];
 
         if (docData['items'] != null) {
-          // Jika di database sudah tersimpan dalam bentuk array
+          // Jika di database sudah tersimpan dalam bentuk array (Format Baru Admin)
           listPekerjaanDariAdmin = List<Map<String, dynamic>>.from(docData['items']);
         } else if (docData['jenis_servis'] != null) {
-          // Jika Admin menginput teks biasa (Misal: "Ganti Oli, Ganti Kampas Rem")
-          // Sistem otomatis memecah teks tersebut berdasarkan tanda koma (,) menjadi list ceklist
-          String teksServis = docData['jenis_servis'];
+          // Fallback jika membaca format data lama
+          String teksServis = docData['jenis_servis'].toString();
           List<String> potonganTeks = teksServis.split(',');
 
           for (var itemTeks in potonganTeks) {
@@ -148,7 +163,11 @@ class _ProsesServisPageState extends State<ProsesServisPage> {
                         itemBuilder: (context, index) {
                           final item = listPekerjaanDariAdmin[index];
                           String namaTugas = item['nama'] ?? 'Item Servis';
-                          String estimasiTugas = item['estimasi'] ?? '30';
+                          
+                          // Mengambil estimasi mentah (misal: "90") dan mengubahnya jadi "1 Jam 30 Menit"
+                          String estimasiMentah = (item['estimasi'] ?? '0').toString();
+                          String estimasiFormat = _formatEstimasi(estimasiMentah);
+                          
                           String statusTugas = item['status'] ?? 'Belum Mulai';
 
                           bool isSelesai = statusTugas == 'Selesai';
@@ -184,10 +203,35 @@ class _ProsesServisPageState extends State<ProsesServisPage> {
                                           color: isSelesai ? Colors.green.shade900 : Colors.black87,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "Estimasi Waktu: $estimasiTugas Menit",
-                                        style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                      const SizedBox(height: 6),
+                                      
+                                      // Label Target Waktu yang lebih rapi
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isSelesai ? Colors.green.shade100 : Colors.orange.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: isSelesai ? Colors.green.shade300 : Colors.orange.shade200),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.timer_outlined, 
+                                              size: 12, 
+                                              color: isSelesai ? Colors.green.shade700 : Colors.orange.shade700
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              "Target: $estimasiFormat",
+                                              style: TextStyle(
+                                                fontSize: 11, 
+                                                color: isSelesai ? Colors.green.shade700 : Colors.orange.shade800, 
+                                                fontWeight: FontWeight.bold
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),

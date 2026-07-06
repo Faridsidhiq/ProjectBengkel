@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'login_mobile_page.dart';
+// PASTIKAN IMPORT FILE LOGIN ANDA SESUAI DENGAN NAMA FILENYA:
+// import 'login_page.dart'; // Aktifkan dan sesuaikan jika ada error di fungsi logout
 
 // GLOBAL VARIABLE UNTUK MENAMPUNG DATA SPK YANG SEDANG DIKERJAKAN AKTIF
 Map<String, dynamic>? spkAktifData;
@@ -27,10 +30,11 @@ class _DashboardMontirPageState extends State<DashboardMontirPage> {
     final List<Widget> halamanMenu = [
       KontenBerandaMontir(
         onKerjakanPressed: () => ubahHalaman(1),
-        onProfilePressed: () => ubahHalaman(2), // Bisa klik profil
+        onProfilePressed: () => ubahHalaman(2), 
       ), 
       HalamanProsesServis(onSelesaiSemua: () => ubahHalaman(0)), 
-      const ProfilePage(),
+      // TAMBAHKAN FUNGSI KEMBALI DI BAWAH INI:
+      ProfilePage(onBackPressed: () => ubahHalaman(0)), 
     ];
 
     return Scaffold(
@@ -81,10 +85,16 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
   void _getNamaMekanik() async {
     if (currentUid.isNotEmpty) {
       try {
-        var userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUid).get();
-        if (userDoc.exists && userDoc.data()?['nama'] != null) {
+        // Cari di collection 'montir' berdasarkan uid_akun
+        var query = await FirebaseFirestore.instance
+            .collection('montir')
+            .where('uid_akun', isEqualTo: currentUid)
+            .limit(1)
+            .get();
+            
+        if (query.docs.isNotEmpty) {
           setState(() {
-            namaMontir = userDoc.data()?['nama'];
+            namaMontir = query.docs.first.data()['nama'] ?? 'Mekanik';
           });
         }
       } catch (e) {
@@ -94,6 +104,9 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
   }
 
   void _tampilkanDetailSPK(BuildContext context, Map<String, dynamic> data, String deskripsiServis) {
+    // Ambil daftar sparepart dari data SPK
+    final List<dynamic> daftarSparepart = data['sparepart'] ?? [];
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -127,22 +140,71 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
               ),
               const Divider(height: 30),
               
-              _buildDetailRow("Pelanggan", data['nama_pelanggan'] ?? '-'),
-              _buildDetailRow("Kendaraan", data['kendaraan'] ?? '-'),
-              _buildDetailRow("Plat Nomor", data['plat'] ?? '-'),
-              _buildDetailRow("Jam Masuk", data['jam_masuk'] ?? '-'),
-              const Divider(height: 30),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow("Pelanggan", data['nama_pelanggan'] ?? '-'),
+                      _buildDetailRow("Kendaraan", data['kendaraan'] ?? '-'),
+                      _buildDetailRow("Plat Nomor", data['plat'] ?? '-'),
+                      _buildDetailRow("Jam Masuk", data['jam_masuk'] ?? '-'),
+                      const Divider(height: 30),
+                      
+                      const Text("Keluhan / Catatan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      Text(data['keluhan'] ?? 'Tidak ada keluhan spesifik dicatat.', style: const TextStyle(fontSize: 14)),
+                      const SizedBox(height: 16),
+                      
+                      const Text("Jenis Penanganan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      Text(deskripsiServis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 16),
+
+                      const Text("Sparepart & Kebutuhan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      if (daftarSparepart.isEmpty)
+                        const Text(
+                          "Tidak ada kebutuhan sparepart yang dicatat.", 
+                          style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.grey)
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: daftarSparepart.map((item) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.build_circle, size: 14, color: Colors.blue.shade700),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        "${item['nama']} (x${item['jumlah']})",
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
               
-              const Text("Keluhan / Catatan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
-              const SizedBox(height: 4),
-              Text(data['keluhan'] ?? 'Tidak ada keluhan spesifik dicatat.', style: const TextStyle(fontSize: 14)),
-              const SizedBox(height: 16),
-              
-              const Text("Jenis Penanganan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
-              const SizedBox(height: 4),
-              Text(deskripsiServis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-              
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 45,
@@ -202,7 +264,6 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
                     ),
                   ],
                 ),
-                // HEADER PROFIL YANG BISA DIKLIK
                 InkWell(
                   onTap: widget.onProfilePressed, 
                   borderRadius: BorderRadius.circular(20),
@@ -459,6 +520,24 @@ class HalamanProsesServis extends StatelessWidget {
   final VoidCallback onSelesaiSemua;
   const HalamanProsesServis({super.key, required this.onSelesaiSemua});
 
+  // Fungsi pengonversi menit menjadi Hari, Jam, dan Menit
+  String _formatEstimasi(String estimasiMentah) {
+    int totalMenit = int.tryParse(estimasiMentah) ?? 0;
+    if (totalMenit <= 0) return "Fleksibel";
+    
+    final hari = totalMenit ~/ 1440; // 1 Hari = 1440 menit
+    final sisaSetelahHari = totalMenit % 1440;
+    final jam = sisaSetelahHari ~/ 60; // 1 Jam = 60 menit
+    final menit = sisaSetelahHari % 60;
+
+    final parts = <String>[];
+    if (hari > 0) parts.add("$hari Hari");
+    if (jam > 0) parts.add("$jam Jam");
+    if (menit > 0) parts.add("$menit Menit");
+    
+    return parts.join(" ");
+  }
+
   @override
   Widget build(BuildContext context) {
     if (spkAktifId == null) {
@@ -516,9 +595,6 @@ class HalamanProsesServis extends StatelessWidget {
         int tugasSelesai = listPekerjaanDinamis.where((item) => item['status'] == 'Selesai').length;
         double persenProgress = totalTugas > 0 ? (tugasSelesai / totalTugas) : 0.0;
         
-        // ==============================================================
-        // VARIABEL VALIDASI: CEK APAKAH SEMUA TUGAS SUDAH DICENTANG
-        // ==============================================================
         bool isSemuaSelesai = totalTugas > 0 && tugasSelesai == totalTugas;
 
         return Scaffold(
@@ -619,7 +695,11 @@ class HalamanProsesServis extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final item = listPekerjaanDinamis[index];
                           String namaTugas = item['nama'] ?? 'Item Servis';
-                          String estimasiTugas = item['estimasi'] ?? '0';
+                          
+                          // MEMANGGIL FUNGSI FORMAT WAKTU DI SINI
+                          String estimasiMentah = item['estimasi'] ?? '0';
+                          String estimasiFormat = _formatEstimasi(estimasiMentah);
+                          
                           bool isSelesai = item['status'] == 'Selesai';
 
                           return Container(
@@ -644,7 +724,8 @@ class HalamanProsesServis extends StatelessWidget {
                               subtitle: Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
-                                  isSelesai ? "Selesai ditangani" : "Estimasi pengerjaan: $estimasiTugas Menit",
+                                  // MENAMPILKAN FORMAT WAKTU YANG SUDAH RAPI
+                                  isSelesai ? "Selesai ditangani" : "Estimasi pengerjaan: $estimasiFormat",
                                   style: TextStyle(fontSize: 11, color: isSelesai ? Colors.green : Colors.black54),
                                 ),
                               ),
@@ -663,9 +744,6 @@ class HalamanProsesServis extends StatelessWidget {
                       ),
               ),
 
-              // ==============================================================
-              // TOMBOL SELESAI DENGAN VALIDASI HARUS 100%
-              // ==============================================================
               Padding(
                 padding: const EdgeInsets.all(14),
                 child: SizedBox(
@@ -693,7 +771,6 @@ class HalamanProsesServis extends StatelessWidget {
                             onSelesaiSemua();
                           }
                         : () {
-                            // Memberikan pesan error kalau ditekan tapi belum 100%
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text("Selesaikan seluruh ceklist tugas terlebih dahulu!"),
@@ -701,26 +778,28 @@ class HalamanProsesServis extends StatelessWidget {
                               ),
                             );
                           },
-                child: Text(
-                  isSemuaSelesai ? "SELESAI & SERAHKAN KUNCI" : "SELESAIKAN TUGAS DULU", 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)
+                    child: Text(
+                      isSemuaSelesai ? "SELESAI & SERAHKAN KUNCI" : "SELESAIKAN TUGAS DULU", 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          )
-        ],
-      ),
+              )
+            ],
+          ),
+        );
+      },
     );
-  },
-);
   }
 }
 
 // =========================================================
-// 3. HALAMAN PROFIL (SUDAH DIPERBARUI)
+// 3. HALAMAN PROFIL (DENGAN STATISTIK & RIWAYAT)
 // =========================================================
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final VoidCallback onBackPressed; // Menampung fungsi kembali
+  
+  const ProfilePage({super.key, required this.onBackPressed});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -728,25 +807,65 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
+  
   String _namaMontir = "Mekanik...";
+  String _spesialisasi = "Mekanik Umum";
+  int _selesaiHariIni = 0;
+  int _selesaiBulanIni = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadNamaMekanik();
+    _loadDataProfilDanStatistik();
   }
 
-  Future<void> _loadNamaMekanik() async {
+  Future<void> _loadDataProfilDanStatistik() async {
     if (currentUser != null) {
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).get();
-        if (doc.exists && doc.data()?['nama'] != null) {
+        final query = await FirebaseFirestore.instance
+            .collection('montir')
+            .where('uid_akun', isEqualTo: currentUser!.uid)
+            .limit(1)
+            .get();
+
+        if (query.docs.isNotEmpty) {
+          final data = query.docs.first.data();
           setState(() {
-            _namaMontir = doc.data()?['nama'];
+            _namaMontir = data['nama'] ?? 'Mekanik';
+            _spesialisasi = data['spesialisasi'] ?? 'Mekanik Umum';
           });
         }
+
+        final spkSelesai = await FirebaseFirestore.instance
+            .collection('spk')
+            .where('montir_uid', isEqualTo: currentUser!.uid)
+            .where('status', isEqualTo: 'Selesai')
+            .get();
+
+        final now = DateTime.now();
+        int hitungHariIni = 0;
+        int hitungBulanIni = 0;
+
+        for (var spk in spkSelesai.docs) {
+          final data = spk.data();
+          if (data['waktu_selesai'] != null) {
+            DateTime waktuSelesai = (data['waktu_selesai'] as Timestamp).toDate();
+            if (waktuSelesai.year == now.year && waktuSelesai.month == now.month) {
+              hitungBulanIni++;
+              if (waktuSelesai.day == now.day) {
+                hitungHariIni++;
+              }
+            }
+          }
+        }
+
+        setState(() {
+          _selesaiHariIni = hitungHariIni;
+          _selesaiBulanIni = hitungBulanIni;
+        });
+
       } catch (e) {
-        debugPrint("Error load profil: $e");
+        debugPrint("Error load profil & stat: $e");
       }
     }
   }
@@ -765,10 +884,20 @@ class _ProfilePageState extends State<ProfilePage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              Navigator.pop(context); // Tutup dialog
+              Navigator.pop(context); // Tutup dialog konfirmasi dulu
+              
+              // Proses logout dari Firebase
               await FirebaseAuth.instance.signOut();
+              
               if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                // MENGGUNAKAN NAVIGASI LANGSUNG (DIRECT ROUTING)
+                // GANTI tulisan "LoginPage()" di bawah ini dengan nama Class halaman login Anda!
+                // Contoh: LoginMobilePage(), LoginScreen(), LoginView(), dll.
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginMobilePage()), 
+                  (Route<dynamic> route) => false,
+                );
               }
             },
             child: const Text("Ya, Logout", style: TextStyle(color: Colors.white)),
@@ -781,54 +910,88 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView( 
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const Text(
-              "Profil Mekanik",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
             
-            // FOTO PROFIL (IKON)
+            // --- HEADER DENGAN TOMBOL KEMBALI ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                  onPressed: widget.onBackPressed, // Memanggil fungsi kembali ke Beranda
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(), // Mengurangi jarak kosong di sekitar ikon
+                ),
+                const Text("Profil Mekanik", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 24), // Spacer bayangan agar teks tetap persis di tengah
+              ],
+            ),
+            
+            const SizedBox(height: 30),
+            
             CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.blue.shade100,
-              child: Icon(Icons.engineering, size: 60, color: Colors.blue.shade800),
+              radius: 45,
+              backgroundColor: Colors.blue.shade50,
+              child: Icon(Icons.engineering, size: 50, color: Colors.blue.shade800),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            Text(_namaMontir, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
             
-            // NAMA MEKANIK
-            Text(
-              _namaMontir,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(20)),
+              child: Text(
+                "Spesialis: $_spesialisasi",
+                style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
             ),
             const SizedBox(height: 8),
+            Text(currentUser?.email ?? 'Email tidak ditemukan', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
             
-            // EMAIL MEKANIK
+            const SizedBox(height: 30),
+
+            Row(
+              children: [
+                _buildStatBox("Selesai Hari Ini", "$_selesaiHariIni Unit", Colors.green),
+                const SizedBox(width: 16),
+                _buildStatBox("Selesai Bulan Ini", "$_selesaiBulanIni Unit", Colors.blue),
+              ],
+            ),
+            
+            const SizedBox(height: 30),
+
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Column(
                 children: [
-                  Icon(Icons.email, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 8),
-                  Text(
-                    currentUser?.email ?? 'Email tidak ditemukan',
-                    style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                      child: Icon(Icons.history, color: Colors.blue.shade700),
+                    ),
+                    title: const Text("Riwayat Pekerjaan Saya", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: const Text("Lihat mobil yang pernah ditangani", style: TextStyle(fontSize: 11)),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RiwayatKerjaMontirPage()));
+                    },
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 30),
             
-            const Spacer(),
-            
-            // TOMBOL LOGOUT
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -849,6 +1012,122 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String title, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================
+// 4. HALAMAN BARU: RIWAYAT PEKERJAAN MONTIR
+// =========================================================
+class RiwayatKerjaMontirPage extends StatelessWidget {
+  const RiwayatKerjaMontirPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        title: const Text("Riwayat Pekerjaan Saya", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('spk')
+            .where('montir_uid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'Selesai')
+            // Dihapus: orderBy('waktu_selesai') agar tidak error Index Firestore
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text("Terjadi kesalahan: ${snapshot.error}"));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text("Belum ada riwayat pekerjaan yang selesai.", style: TextStyle(color: Colors.grey)),
+            );
+          }
+
+          // Ambil datanya dan urutkan secara manual di Flutter
+          final docs = snapshot.data!.docs.toList();
+          
+          docs.sort((a, b) {
+            final dataA = a.data() as Map<String, dynamic>;
+            final dataB = b.data() as Map<String, dynamic>;
+            Timestamp? waktuA = dataA['waktu_selesai'] as Timestamp?;
+            Timestamp? waktuB = dataB['waktu_selesai'] as Timestamp?;
+            
+            if (waktuA == null || waktuB == null) return 0;
+            return waktuB.compareTo(waktuA); // Mengurutkan dari yang terbaru (Descending)
+          });
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              
+              String tanggalSelesai = "-";
+              if (data['waktu_selesai'] != null) {
+                DateTime dt = (data['waktu_selesai'] as Timestamp).toDate();
+                tanggalSelesai = "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+              }
+
+              return Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.shade300)
+                ),
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.green.shade50,
+                    child: Icon(Icons.verified, color: Colors.green.shade600),
+                  ),
+                  title: Text(data['plat'] ?? 'Tanpa Plat', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text("Kendaraan: ${data['kendaraan'] ?? '-'}"),
+                      const SizedBox(height: 4),
+                      Text("Tgl Selesai: $tanggalSelesai", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

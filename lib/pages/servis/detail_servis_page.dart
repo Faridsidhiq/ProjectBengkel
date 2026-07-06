@@ -592,7 +592,7 @@ class DetailServisPage extends StatelessWidget {
                                           if (isTransfer) ...[
                                             const SizedBox(height: 4),
                                             Text(
-                                              "BCA  •  1234567890  •  a.n Jimu Mitsubishi",
+                                              "BCA  •  2940825272  •  a.n Sarjimu",
                                               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                                             ),
                                             Text(

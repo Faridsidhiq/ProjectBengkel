@@ -32,6 +32,7 @@ void editData(DocumentSnapshot doc) {
   final data = doc.data() as Map<String, dynamic>;
 
   final nama = TextEditingController(text: data['nama']);
+  final email = TextEditingController(text: data['email']);
   final telp = TextEditingController(text: data['telepon']);
   final kendaraan = TextEditingController(text: data['kendaraan']);
   final plat = TextEditingController(text: data['plat']);
@@ -40,86 +41,105 @@ void editData(DocumentSnapshot doc) {
   showDialog(
     context: context,
     builder: (dialogContext) {
+      final screenHeight = MediaQuery.of(dialogContext).size.height;
+
       return Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Container(
-          width: 500,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: screenHeight * 0.9, // 👈 batasi tinggi dialog max 90% layar
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
 
-              // HEADER
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Edit Pelanggan",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                // HEADER
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Edit Pelanggan",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close),
+                    )
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // 👇 SEMUA INPUT DIBUNGKUS SCROLLVIEW BIAR NGGAK OVERFLOW
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        buildInput("Nama Lengkap *", nama),
+                        buildInput("Email *", email),
+                        buildInput("Nomor Telepon *", telp),
+                        buildInput("Nomor Plat *", plat),
+                        buildInput("Nama Kendaraan *", kendaraan),
+                        buildInput("KM Terakhir *", km),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    icon: const Icon(Icons.close),
-                  )
-                ],
-              ),
+                ),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              buildInput("Nama Lengkap *", nama),
-              buildInput("Nomor Telepon *", telp),
-              buildInput("Nomor Plat *", plat),
-              buildInput("Nama Kendaraan *", kendaraan),
-              buildInput("KM Terakhir *", km),
-
-              const SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text("Batal"),
                     ),
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text("Batal"),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () async {
+                        final navigator = Navigator.of(dialogContext);
+
+                        await FirebaseFirestore.instance
+                            .collection('pelanggan')
+                            .doc(doc.id)
+                            .update({
+                          'nama': nama.text,
+                          'email': email.text,
+                          'telepon': telp.text,
+                          'kendaraan': kendaraan.text,
+                          'plat': plat.text,
+                          'km': km.text,
+                        });
+
+                        if (!mounted) return;
+
+                        navigator.pop();
+                      },
+                      icon: const Icon(Icons.save),
+                      label: const Text("Update"),
                     ),
-                    onPressed: () async {
-                      final navigator = Navigator.of(dialogContext);
-
-                      await FirebaseFirestore.instance
-                          .collection('pelanggan')
-                          .doc(doc.id)
-                          .update({
-                        'nama': nama.text,
-                        'telepon': telp.text,
-                        'kendaraan': kendaraan.text,
-                        'plat': plat.text,
-                        'km': km.text,
-                      });
-
-                      if (!mounted) return;
-
-                      navigator.pop();
-                    },
-                    icon: const Icon(Icons.save),
-                    label: const Text("Update"),
-                  ),
-                ],
-              )
-            ],
+                  ],
+                )
+              ],
+            ),
           ),
         ),
       );
@@ -228,10 +248,12 @@ void editData(DocumentSnapshot doc) {
                   final d = doc.data() as Map<String, dynamic>;
 
                   final nama = (d['nama'] ?? '').toLowerCase();
+                  final email = (d['email'] ?? '').toLowerCase();
                   final telp = (d['telepon'] ?? '').toLowerCase();
                   final plat = (d['plat'] ?? '').toLowerCase();
 
                   return nama.contains(searchQuery) ||
+                         email.contains(searchQuery) ||
                          telp.contains(searchQuery) ||
                          plat.contains(searchQuery);
                 }).toList();
@@ -280,6 +302,7 @@ void editData(DocumentSnapshot doc) {
                                   columns: const [
                                     DataColumn(label: Text("NO")),
                                     DataColumn(label: Text("NAMA")),
+                                    DataColumn(label: Text("EMAIL")),
                                     DataColumn(label: Text("TELEPON")),
                                     DataColumn(label: Text("KENDARAAN")),
                                     DataColumn(label: Text("PLAT")),
@@ -297,6 +320,7 @@ void editData(DocumentSnapshot doc) {
                                           return DataRow(cells: [
                                             DataCell(Text("${start + index + 1}")),
                                             DataCell(Text(d['nama'] ?? '')),
+                                            DataCell(Text(d['email'] ?? '')),
                                             DataCell(Text(d['telepon'] ?? '')),
                                             DataCell(Text(d['kendaraan'] ?? '')),
                                             DataCell(Text(d['plat'] ?? '')),
@@ -325,7 +349,7 @@ void editData(DocumentSnapshot doc) {
 
                                                     const SizedBox(width: 6),
 
-                                                    // 🗑 DELETE
+                                                    // 🗑️ DELETE
                                                     GestureDetector(
                                                       onTap: () => hapusData(doc.id),
                                                       child: Container(

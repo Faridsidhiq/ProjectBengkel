@@ -8,6 +8,7 @@ import 'akun_mobile_page.dart';
 import 'detail_perawatan_page.dart';
 import 'semua_perawatan_page.dart';
 import 'katalog_barang_page.dart'; 
+import 'notifikasi_mobile_page.dart';
 
 class DashboardMobilePage extends StatefulWidget {
   const DashboardMobilePage({super.key});
@@ -303,10 +304,45 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.notifications_none),
-                    ),
+  StreamBuilder<QuerySnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('spk')
+      .where('email', isEqualTo: FirebaseAuth.instance.currentUser?.email)
+      .where('status', isEqualTo: 'Selesai')
+      .snapshots(),
+  builder: (context, snapshot) {
+    bool adaNotifBaru = false;
+
+    if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+      // Cek apakah ada minimal 1 notifikasi yang BELUM dibaca
+      adaNotifBaru = snapshot.data!.docs.any((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        // Jika field 'notif_dibaca' belum ada atau bernilai false, berarti belum dibaca
+        return data['notif_dibaca'] != true; 
+      });
+    }
+    
+    return Stack(
+      children: [
+        IconButton(
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotifikasiMobilePage()));
+          },
+          icon: const Icon(Icons.notifications_active, color: Colors.orange),
+        ),
+        if (adaNotifBaru)
+          Positioned(
+            right: 11,
+            top: 11,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+            ),
+          ),
+      ],
+    );
+  },
+),
                     // FITUR BARU: Ikon User bisa diklik dan lompat ke AkunMobilePage
                     InkWell(
                       onTap: () {
