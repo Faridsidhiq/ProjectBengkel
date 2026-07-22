@@ -260,245 +260,276 @@ class _TambahSparepartPageState extends State<TambahSparepartPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 Lebar dialog menyesuaikan layar: maksimal 950, tapi nggak lebih dari 95% lebar layar
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = screenWidth < 1000 ? screenWidth * 0.95 : 950.0;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
-        width: 950,
+        width: dialogWidth,
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
 
-            // ================= HEADER =================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.docId == null ? "Tambah Data Sparepart" : "Edit Data Sparepart",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-
-            Align(
-              alignment: Alignment.centerLeft,
-              child: RichText(
-                text: const TextSpan(children: [
-                  TextSpan(text: "* ", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  TextSpan(text: "Wajib diisi  ", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  TextSpan(text: "Opsional", style: TextStyle(color: Colors.blue, fontSize: 12)),
-                  TextSpan(text: " = boleh dikosongkan", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                ]),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-
-                // ================= KOLOM KIRI =================
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-
-                      _buildLabel("Nama Sparepart", wajib: true),
-                      _buildTextField(
-                        controller: namaController,
-                        hint: "Contoh: Oli Shell Helix",
-                        helper: "Isi nama sparepart sesuai produk",
-                        tipeInput: TextInputType.text,
-                      ),
-
-                      _buildLabel("Kategori", wajib: true),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedKategori,
-                        items: kategoriList
-                            .map((k) => DropdownMenuItem(value: k, child: Text(k)))
-                            .toList(),
-                        onChanged: (value) => setState(() => selectedKategori = value!),
-                        decoration: InputDecoration(
-                          helperText: "Pilih jenis sparepart",
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      _buildLabel("Stok", wajib: true),
-                      _buildTextField(
-                        controller: stokController,
-                        hint: "Contoh: 10",
-                        helper: "Jumlah barang tersedia",
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      _buildLabel("Type Kendaraan", wajib: false),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedTypeKendaraan,
-                        decoration: InputDecoration(
-                          helperText: "Pilih type kendaraan (opsional)",
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        items: typeKendaraanList
-                            .map((item) => DropdownMenuItem(
-                                  value: item,
-                                  child: Text(item, overflow: TextOverflow.ellipsis),
-                                ))
-                            .toList(),
-                        onChanged: (value) => setState(() => selectedTypeKendaraan = value!),
-                      ),
-                    ],
+              // ================= HEADER =================
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.docId == null ? "Tambah Data Sparepart" : "Edit Data Sparepart",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                ),
-
-                const SizedBox(width: 20),
-
-                // ================= KOLOM TENGAH =================
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-
-                      _buildLabel("Harga Beli", wajib: false),
-                      _buildTextField(
-                        controller: beliController,
-                        hint: "Contoh: 50.000",
-                        helper: "Opsional — harga modal sparepart",
-                        isRupiah: true,
-                      ),
-
-                      _buildLabel("Harga Jual", wajib: true),
-                      _buildTextField(
-                        controller: jualController,
-                        hint: "Contoh: 75.000",
-                        helper: "Harga jual ke pelanggan",
-                        isRupiah: true,
-                      ),
-
-                      _buildLabel("Minimal Stok", wajib: false),
-                      _buildTextField(
-                        controller: minStokController,
-                        hint: "Contoh: 3",
-                        helper: "Opsional — batas peringatan stok menipis",
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 20),
-
-                // ================= KOLOM KANAN - FOTO =================
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-
-                      _buildLabel("Link Foto", wajib: false),
-                      TextField(
-                        controller: fotoController,
-                        keyboardType: TextInputType.url,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: "https://...",
-                          helperText: "Opsional — tempel link URL gambar",
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      Container(
-                        width: double.infinity,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: fotoController.text.trim().isEmpty
-                            ? const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.image_outlined, size: 40, color: Colors.grey),
-                                    SizedBox(height: 8),
-                                    Text("Preview gambar", style: TextStyle(color: Colors.grey)),
-                                  ],
-                                ),
-                              )
-                            : ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  fotoController.text.trim(),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.broken_image_outlined, size: 40, color: Colors.red),
-                                        SizedBox(height: 8),
-                                        Text("Link gambar tidak valid", style: TextStyle(color: Colors.red)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            // ================= TOMBOL =================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 180,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
+                  IconButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("Batal"),
+                    icon: const Icon(Icons.close),
                   ),
+                ],
+              ),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: RichText(
+                  text: const TextSpan(children: [
+                    TextSpan(text: "* ", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    TextSpan(text: "Wajib diisi  ", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    TextSpan(text: "Opsional", style: TextStyle(color: Colors.blue, fontSize: 12)),
+                    TextSpan(text: " = boleh dikosongkan", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ]),
                 ),
-                const SizedBox(width: 20),
-                SizedBox(
-                  width: 220,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+              ),
+
+              const SizedBox(height: 16),
+
+              // 🔥 RESPONSIF: 3 kolom jadi Row kalau lebar, ditumpuk Column kalau sempit
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final bool isNarrow = constraints.maxWidth < 700;
+
+                  final kolomKiri = _buildKolomKiri();
+                  final kolomTengah = _buildKolomTengah();
+                  final kolomKanan = _buildKolomKanan();
+
+                  if (isNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        kolomKiri,
+                        const SizedBox(height: 10),
+                        kolomTengah,
+                        const SizedBox(height: 10),
+                        kolomKanan,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: kolomKiri),
+                      const SizedBox(width: 20),
+                      Expanded(child: kolomTengah),
+                      const SizedBox(width: 20),
+                      Expanded(child: kolomKanan),
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: 25),
+
+              // ================= TOMBOL =================
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Batal"),
                     ),
-                    onPressed: isLoading ? null : simpanData,
-                    icon: isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.save),
-                    label: Text(isLoading ? "Menyimpan..." : "Simpan Data"),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: isLoading ? null : simpanData,
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.save),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(isLoading ? "Menyimpan..." : "Simpan Data"),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  // ================= KOLOM KIRI =================
+  Widget _buildKolomKiri() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel("Nama Sparepart", wajib: true),
+        _buildTextField(
+          controller: namaController,
+          hint: "Contoh: Oli Shell Helix",
+          helper: "Isi nama sparepart sesuai produk",
+          tipeInput: TextInputType.text,
+        ),
+
+        _buildLabel("Kategori", wajib: true),
+        DropdownButtonFormField<String>(
+          initialValue: selectedKategori,
+          items: kategoriList
+              .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+              .toList(),
+          onChanged: (value) => setState(() => selectedKategori = value!),
+          decoration: InputDecoration(
+            helperText: "Pilih jenis sparepart",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+
+        const SizedBox(height: 15),
+
+        _buildLabel("Stok", wajib: true),
+        _buildTextField(
+          controller: stokController,
+          hint: "Contoh: 10",
+          helper: "Jumlah barang tersedia",
+        ),
+
+        const SizedBox(height: 15),
+
+        _buildLabel("Type Kendaraan", wajib: false),
+        DropdownButtonFormField<String>(
+          initialValue: selectedTypeKendaraan,
+          decoration: InputDecoration(
+            helperText: "Pilih type kendaraan (opsional)",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          items: typeKendaraanList
+              .map((item) => DropdownMenuItem(
+                    value: item,
+                    child: Text(item, overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: (value) => setState(() => selectedTypeKendaraan = value!),
+        ),
+      ],
+    );
+  }
+
+  // ================= KOLOM TENGAH =================
+  Widget _buildKolomTengah() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel("Harga Beli", wajib: false),
+        _buildTextField(
+          controller: beliController,
+          hint: "Contoh: 50.000",
+          helper: "Opsional — harga modal sparepart",
+          isRupiah: true,
+        ),
+
+        _buildLabel("Harga Jual", wajib: true),
+        _buildTextField(
+          controller: jualController,
+          hint: "Contoh: 75.000",
+          helper: "Harga jual ke pelanggan",
+          isRupiah: true,
+        ),
+
+        _buildLabel("Minimal Stok", wajib: false),
+        _buildTextField(
+          controller: minStokController,
+          hint: "Contoh: 3",
+          helper: "Opsional — batas peringatan stok menipis",
+        ),
+      ],
+    );
+  }
+
+  // ================= KOLOM KANAN - FOTO =================
+  Widget _buildKolomKanan() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel("Link Foto", wajib: false),
+        TextField(
+          controller: fotoController,
+          keyboardType: TextInputType.url,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: "https://...",
+            helperText: "Opsional — tempel link URL gambar",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+
+        const SizedBox(height: 15),
+
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: fotoController.text.trim().isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text("Preview gambar", style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                )
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    fotoController.text.trim(),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image_outlined, size: 40, color: Colors.red),
+                          SizedBox(height: 8),
+                          Text("Link gambar tidak valid", style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 

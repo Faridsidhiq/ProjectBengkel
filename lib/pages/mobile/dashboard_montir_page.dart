@@ -251,34 +251,51 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Image.asset('assets/logo.png', width: 35, errorBuilder: (c, e, s) => const Icon(Icons.car_repair, color: Colors.blue, size: 35)),
-                    const SizedBox(width: 8),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("JIMU MITSUBISHI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5)),
-                        Text("Bengkel Terbaik", style: TextStyle(color: Colors.grey, fontSize: 10)),
-                      ],
-                    ),
-                  ],
+                Expanded(
+                  flex: 3,
+                  child: Row(
+                    children: [
+                      Image.asset('assets/logo.png', width: 35, errorBuilder: (c, e, s) => const Icon(Icons.car_repair, color: Colors.blue, size: 35)),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("JIMU MITSUBISHI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5), overflow: TextOverflow.ellipsis),
+                            Text("Bengkel Terbaik", style: TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                InkWell(
-                  onTap: widget.onProfilePressed, 
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                    child: Row(
-                      children: [
-                        Text("Halo, $namaMontir", style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11)),
-                        const SizedBox(width: 6),
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Colors.orange.shade100,
-                          child: const Icon(Icons.face, size: 16, color: Colors.orange),
-                        )
-                      ],
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: InkWell(
+                    onTap: widget.onProfilePressed, 
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              "Halo, $namaMontir", 
+                              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.orange.shade100,
+                            child: const Icon(Icons.face, size: 16, color: Colors.orange),
+                          )
+                        ],
+                      ),
                     ),
                   ),
                 )
@@ -433,14 +450,21 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(data['plat'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Expanded(
+                              child: Text(data['plat'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 8),
                             _buildStatusBadge(status),
                           ],
                         ),
+                        const SizedBox(height: 4),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(data['kendaraan'] ?? '-', style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 12)),
+                            Expanded(
+                              child: Text(data['kendaraan'] ?? '-', style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 12), overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 8),
                             const Text("Lihat Detail SPK >", style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
                           ],
                         ),

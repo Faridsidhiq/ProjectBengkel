@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'register_page.dart';
+import 'forgot_password_page.dart';
 import '../dashboard/dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -11,148 +11,219 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   Future<void> loginUser() async {
-  try {
-    await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: emailController.text.trim(),
-      password: passwordController.text.trim(),
-    );
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
-    if (!mounted) return; // 🔥 FIX WAJIB
+      if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardPage()),
-    );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
 
-  } catch (e) {
-    if (!mounted) return; // 🔥 FIX WAJIB
+      String pesanError;
+      switch (e.code) {
+        case 'user-not-found':
+        case 'wrong-password':
+        case 'invalid-credential':
+          pesanError = "Email atau kata sandi salah";
+          break;
+        case 'invalid-email':
+          pesanError = "Format email tidak valid";
+          break;
+        case 'user-disabled':
+          pesanError = "Akun ini telah dinonaktifkan";
+          break;
+        case 'too-many-requests':
+          pesanError = "Terlalu banyak percobaan. Silakan coba lagi nanti";
+          break;
+        default:
+          pesanError = "Email atau kata sandi salah";
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Login gagal: $e")),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(pesanError), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login gagal: $e")),
+      );
+    }
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
+      // 🔥 RESPONSIF: deteksi lebar layar pakai LayoutBuilder
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isMobile = constraints.maxWidth < 800;
 
-          // 🔵 LEFT
-          Expanded(
-            child: Container(
-              color: Colors.grey[200],
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset('assets/logo.png', width: 200),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "JIMU MITSUBISHI",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          return Row(
+            children: [
+              // 🔵 LEFT — disembunyikan kalau layar sempit
+              if (!isMobile)
+                Expanded(
+                  child: Container(
+                    color: Colors.grey[200],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset('assets/logo.png', width: 200),
+                        const SizedBox(height: 20),
+                        const Text(
+                          "JIMU MITSUBISHI",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "Sistem Manajemen Bengkel untuk Pelayanan Terbaik",
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Sistem Manajemen Bengkel untuk Pelayanan Terbaik",
-                    textAlign: TextAlign.center,
+                ),
+
+              // ⚪ RIGHT — form login, full width kalau mobile
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 30 : 60,
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // ⚪ RIGHT
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 60),
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-
-                      const Text(
-                        "Selamat Datang",
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text("Silahkan masuk untuk mengelola dashboard admin"),
-                      const SizedBox(height: 30),
-
-                      // EMAIL
-                      const Text("Alamat Email"),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: emailController,
-                        decoration: InputDecoration(
-                          hintText: "nama@email.com",
-                          prefixIcon: const Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // PASSWORD
-                      const Text("Kata Sandi"),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.lock),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // 🔥 BUTTON LOGIN (SUDAH CONNECT FIREBASE)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 45,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[800],
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: loginUser,
-                          child: const Text("Masuk"),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // REGISTER
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const RegisterPage(),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 🔥 Logo kecil muncul di atas form kalau mobile
+                          if (isMobile) ...[
+                            Center(
+                              child: Image.asset(
+                                'assets/logo.png',
+                                width: 120,
                               ),
-                            );
-                          },
-                          child: const Text("Belum punya akun? Daftar disini"),
-                        ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          const Text(
+                            "Selamat Datang",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Silahkan masuk untuk mengelola dashboard admin",
+                          ),
+                          const SizedBox(height: 30),
+
+                          // EMAIL
+                          const Text("Alamat Email"),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: emailController,
+                            textInputAction: TextInputAction.next,
+                            onSubmitted: (_) => loginUser(),
+                            decoration: InputDecoration(
+                              hintText: "nama@email.com",
+                              prefixIcon: const Icon(Icons.email),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // PASSWORD
+                          const Text("Kata Sandi"),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: passwordController,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => loginUser(),
+                            decoration: InputDecoration(
+                              hintText: "masukan password",
+                              prefixIcon: const Icon(Icons.lock),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // BUTTON LOGIN
+                          SizedBox(
+                            width: double.infinity,
+                            height: 45,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[800],
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: loginUser,
+                              child: const Text("Masuk"),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // LUPA PASSWORD
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ForgotPasswordPage(),
+                                  ),
+                                );
+                              },
+                              child: const Text("Lupa Password?"),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

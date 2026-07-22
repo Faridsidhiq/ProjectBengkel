@@ -23,6 +23,8 @@ class _TambahManajemenAkunPageState
   String selectedRole = "admin";
 
   bool isLoading = false;
+  bool obscurePassword = true;
+  bool obscureKonfirmasiPassword = true;
 
   // ================= SIMPAN DATA =================
 
@@ -207,11 +209,21 @@ class _TambahManajemenAkunPageState
 
               TextField(
                 controller: passwordController,
-                obscureText: true,
+                obscureText: obscurePassword,
                 decoration: InputDecoration(
                   labelText: "Password",
                   hintText: "Minimal 6 karakter",
                   prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -223,11 +235,21 @@ class _TambahManajemenAkunPageState
             // ================= KONFIRMASI PASSWORD =================
             TextField(
               controller: konfirmasiPasswordController,
-              obscureText: true,
+              obscureText: obscureKonfirmasiPassword,
               decoration: InputDecoration(
                 labelText: "Konfirmasi Password",
                 hintText: "Ulangi password",
                 prefixIcon: const Icon(Icons.lock_reset),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscureKonfirmasiPassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      obscureKonfirmasiPassword = !obscureKonfirmasiPassword;
+                    });
+                  },
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

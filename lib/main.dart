@@ -1,9 +1,11 @@
-import 'package:flutter/foundation.dart'; // Tambahan: Wajib untuk mendeteksi kIsWeb
+import 'package:flutter/foundation.dart'; // Wajib untuk mendeteksi kIsWeb
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'pages/auth/login_page.dart'; // Ini halaman login Web kawan Anda
-import 'pages/mobile/login_mobile_page.dart'; // Tambahan: Ini halaman login Mobile Anda
+import 'pages/auth/login_page.dart';
+import 'pages/dashboard/dashboard_page.dart';
+import 'pages/mobile/login_mobile_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,12 +29,40 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      // LOGIKA PEMISAH JALUR:
-      // Jika dibuka di browser Chrome (Web), dia memanggil LoginPage() 
-      // Jika dibuka di Emulator/HP Android, dia otomatis memanggil LoginMobilePage() 
-      home: kIsWeb 
-          ? const LoginPage() 
-          : const LoginMobilePage(),
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Tampilkan indikator loading saat Firebase sedang memverifikasi sesi login
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // Jika pengguna sudah terautentikasi (sesi tersimpan)
+        if (snapshot.hasData && snapshot.data != null) {
+          return kIsWeb 
+              ? const DashboardPage() 
+              : const LoginMobilePage();
+        }
+
+        // Jika belum login / sudah logout
+        return kIsWeb 
+            ? const LoginPage() 
+            : const LoginMobilePage();
+      },
     );
   }
 }

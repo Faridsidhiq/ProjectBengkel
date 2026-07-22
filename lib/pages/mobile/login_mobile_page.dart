@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register_mobile_page.dart';
 import 'dashboard_mobile_page.dart';
 import 'dashboard_montir_page.dart';
+import '../auth/forgot_password_page.dart';
 
 class LoginMobilePage extends StatefulWidget {
   const LoginMobilePage({super.key});
@@ -16,6 +17,7 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool obscurePassword = true;
 
   Future<void> loginUser() async {
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
@@ -179,6 +181,8 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => loginUser(),
                   style: const TextStyle(fontSize: 14), 
                   decoration: InputDecoration(
                     hintText: "nama@email.com",
@@ -197,10 +201,24 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: passwordController,
-                  obscureText: true,
+                  obscureText: obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => loginUser(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.lock, size: 20),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        size: 20,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          obscurePassword = !obscurePassword;
+                        });
+                      },
+                    ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12), 
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -229,7 +247,23 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                         : const Text("Masuk", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), 
                   ),
                 ),
-                const SizedBox(height: 15), 
+                const SizedBox(height: 10), 
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                      );
+                    },
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero), 
+                    child: Text(
+                      "Lupa Password?",
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10), 
                 Center(
                   child: TextButton(
                     onPressed: () {

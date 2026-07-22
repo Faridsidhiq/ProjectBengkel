@@ -37,40 +37,52 @@ class _KeluhanPageState extends State<KeluhanPage> {
       icon = Icons.check_circle;
     }
 
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: Colors.white, size: 22),
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 10),
-            Column(
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title),
+                Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 Text(
                   value,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -137,20 +149,20 @@ Widget build(BuildContext context) {
 
           const SizedBox(height: 20),
 
-          Row(
+          Wrap(
+            spacing: 20,
+            runSpacing: 20,
             children: [
               statCard(
                 "Belum Ditangani",
                 belumDitangani.toString(),
                 Colors.orange,
               ),
-              const SizedBox(width: 20),
               statCard(
                 "Sedang Proses",
                 sedangProses.toString(),
                 Colors.blue,
               ),
-              const SizedBox(width: 20),
               statCard(
                 "Selesai",
                 selesai.toString(),

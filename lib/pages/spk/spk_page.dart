@@ -53,40 +53,53 @@ class _SpkPageState extends State<SpkPage> {
     Color color,
     IconData icon,
   ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: Colors.white),
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 12),
-            Column(
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title),
+                Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -172,7 +185,9 @@ class _SpkPageState extends State<SpkPage> {
             const SizedBox(height: 20),
 
             // ================= STAT CARDS =================
-            Row(
+            Wrap(
+              spacing: 20,
+              runSpacing: 20,
               children: [
                 statCard(
                   "Semua SPK",
@@ -180,21 +195,18 @@ class _SpkPageState extends State<SpkPage> {
                   Colors.purple,
                   Icons.description,
                 ),
-                const SizedBox(width: 20),
                 statCard(
                   "Menunggu",
                   "$totalMenunggu SPK",
                   Colors.orange,
                   Icons.schedule,
                 ),
-                const SizedBox(width: 20),
                 statCard(
-                  "Proses",
+                  "Berjalan",
                   "$totalProses SPK",
                   Colors.blue,
                   Icons.build,
                 ),
-                const SizedBox(width: 20),
                 statCard(
                   "Selesai",
                   "$totalSelesai SPK",

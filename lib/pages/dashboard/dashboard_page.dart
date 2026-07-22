@@ -25,132 +25,99 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isMobile = MediaQuery.of(context).size.width < 800;
+
     return Scaffold(
+      appBar: isMobile
+          ? AppBar(
+              title: Text(getTitle()),
+              backgroundColor: Colors.white,
+              iconTheme: const IconThemeData(color: Colors.black),
+              actions: [
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const ProfilePage(),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.blue.shade100,
+                          child: const Icon(Icons.person, color: Colors.blue, size: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            )
+          : null,
+      drawer: isMobile ? Drawer(child: _buildSidebar()) : null,
       body: Row(
         children: [
           // SIDEBAR
-          Container(
-            width: 250,
-            color: Colors.grey[200],
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-
-                // LOGO
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        'assets/logo.png',
-                        width: 100,
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "JIMU MITSUBISHI",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                menuItem(Icons.dashboard, "Dashboard", "dashboard"),
-                menuItem(Icons.people, "Data Pelanggan", "pelanggan"),
-                menuItem(Icons.build, "Data Montir", "montir"),
-                menuItem(Icons.settings, "Data Sparepart", "sparepart"),
-                menuItem(Icons.description, "SPK", "spk"),
-                menuItem(Icons.note, "Servis", "servis"),
-                menuItem(Icons.warning, "Keluhan", "keluhan"),
-                menuItem(Icons.bar_chart, "Laporan", "laporan"),
-                menuItem(Icons.account_box, "Manajemen Akun", "manajemen_akun"),
-
-                const Spacer(),
-
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => const LogoutPage(),
-                        );
-                      },
-                      icon: const Icon(Icons.logout),
-                      label: const Text("Logout"),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          if (!isMobile) _buildSidebar(),
 
           // CONTENT
           Expanded(
             child: Column(
               children: [
-                // HEADER
-                Container(
-                  height: 70,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  color: Colors.white,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        getTitle(),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                // HEADER (Desktop only)
+                if (!isMobile)
+                  Container(
+                    height: 70,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    color: Colors.white,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          getTitle(),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
 
-                      // PROFILE
-                      GestureDetector(
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => const ProfilePage(),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: Colors.blue.shade100,
-                              child: const Icon(
-                                Icons.person,
-                                color: Colors.blue,
+                        // PROFILE
+                        GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const ProfilePage(),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: Colors.blue.shade100,
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.blue,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              "admin",
-                              style: TextStyle(fontSize: 18),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              const Text(
+                                "admin",
+                                style: TextStyle(fontSize: 18),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
                 // PAGE CONTENT
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(isMobile ? 10 : 20),
                     color: Colors.grey[100],
                     child: buildContent(),
                   ),
@@ -158,6 +125,76 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: 250,
+      color: Colors.grey[200],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+
+          // LOGO
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: [
+                Image.asset(
+                  'assets/logo.png',
+                  width: 100,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  "JIMU MITSUBISHI",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          menuItem(Icons.dashboard, "Dashboard", "dashboard"),
+          menuItem(Icons.people, "Data Pelanggan", "pelanggan"),
+          menuItem(Icons.build, "Data Montir", "montir"),
+          menuItem(Icons.settings, "Data Sparepart", "sparepart"),
+          menuItem(Icons.description, "SPK", "spk"),
+          menuItem(Icons.note, "Servis", "servis"),
+          menuItem(Icons.warning, "Keluhan", "keluhan"),
+          menuItem(Icons.bar_chart, "Laporan", "laporan"),
+          menuItem(Icons.account_box, "Manajemen Akun", "manajemen_akun"),
+
+          const Spacer(),
+
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const LogoutPage(),
+                  );
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text("Logout"),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -178,6 +215,9 @@ class _DashboardPageState extends State<DashboardPage> {
           setState(() {
             selectedMenu = keyMenu;
           });
+          if (MediaQuery.of(context).size.width < 800) {
+            Navigator.pop(context);
+          }
         },
       ),
     );
@@ -230,9 +270,10 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
 
         // STAT CARDS
-        Row(
+        Wrap(
+          spacing: 20,
+          runSpacing: 20,
           children: [
-
             // PELANGGAN
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -248,8 +289,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
             ),
-
-            const SizedBox(width: 20),
 
             // MONTIR
             StreamBuilder<QuerySnapshot>(
@@ -267,8 +306,6 @@ class _DashboardPageState extends State<DashboardPage> {
               },
             ),
 
-            const SizedBox(width: 20),
-
             // SPAREPART
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -284,8 +321,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
             ),
-
-            const SizedBox(width: 20),
 
             // KELUHAN
             StreamBuilder<QuerySnapshot>(
@@ -483,47 +518,46 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget statCard(String title, String value, Color color, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: Colors.white, size: 26),
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+            child: Icon(icon, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            )
-          ],
-        ),
+              ),
+            ],
+          )
+        ],
       ),
     );
   }

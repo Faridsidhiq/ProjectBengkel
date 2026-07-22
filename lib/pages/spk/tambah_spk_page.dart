@@ -409,24 +409,27 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
 
                   const SizedBox(height: 15),
 
-                  DataTable(
-                    border: TableBorder.all(color: Colors.grey.shade300),
-                    columns: const [
-                      DataColumn(label: Text("Nama Pelanggan")),
-                      DataColumn(label: Text("No. Plat")),
-                      DataColumn(label: Text("Kendaraan")),
-                      DataColumn(label: Text("KM Terakhir")),
-                    ],
-                    rows: selectedPelanggan == null
-                        ? []
-                        : [
-                            DataRow(cells: [
-                              DataCell(Text(selectedPelanggan!['nama'])),
-                              DataCell(Text(selectedPelanggan!['plat'])),
-                              DataCell(Text(selectedPelanggan!['kendaraan'])),
-                              DataCell(Text(selectedPelanggan!['km'].toString())),
-                            ])
-                          ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      border: TableBorder.all(color: Colors.grey.shade300),
+                      columns: const [
+                        DataColumn(label: Text("Nama Pelanggan")),
+                        DataColumn(label: Text("No. Plat")),
+                        DataColumn(label: Text("Kendaraan")),
+                        DataColumn(label: Text("KM Terakhir")),
+                      ],
+                      rows: selectedPelanggan == null
+                          ? []
+                          : [
+                              DataRow(cells: [
+                                DataCell(Text(selectedPelanggan!['nama'])),
+                                DataCell(Text(selectedPelanggan!['plat'])),
+                                DataCell(Text(selectedPelanggan!['kendaraan'])),
+                                DataCell(Text(selectedPelanggan!['km'].toString())),
+                              ])
+                            ],
+                    ),
                   ),
 
                   const SizedBox(height: 25),
@@ -574,12 +577,16 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      selectedDate == null
-                                          ? "Pilih Tanggal"
-                                          : "${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}",
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                    Expanded(
+                                      child: Text(
+                                        selectedDate == null
+                                            ? "Pilih Tanggal"
+                                            : "${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}",
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
+                                    const SizedBox(width: 4),
                                     const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
                                   ],
                                 ),
@@ -615,10 +622,14 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      selectedTime == null ? "Pilih Waktu" : selectedTime!.format(context),
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                    Expanded(
+                                      child: Text(
+                                        selectedTime == null ? "Pilih Waktu" : selectedTime!.format(context),
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
+                                    const SizedBox(width: 4),
                                     const Icon(Icons.access_time, color: Colors.grey, size: 20),
                                   ],
                                 ),
@@ -668,11 +679,14 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                       color: Colors.blue.shade800,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: 16,
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             const Text("Total Biaya Sparepart", style: TextStyle(color: Colors.white70)),
                             const SizedBox(height: 5),
@@ -686,7 +700,9 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                             ),
                           ],
                         ),
-                        Row(
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
                           children: [
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
@@ -696,7 +712,6 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                               onPressed: widget.onBack,
                               child: const Text("Batal"),
                             ),
-                            const SizedBox(width: 10),
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,

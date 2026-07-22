@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class TambahServisPage extends StatefulWidget {
   final VoidCallback onBack;
@@ -25,44 +26,75 @@ class _TambahServisPageState extends State<TambahServisPage> {
   double get pajak => 0.11 * (biayaJasa + subtotalSparepart);
   double get totalAkhir => biayaJasa + subtotalSparepart + pajak;
 
+  String _formatRupiah(num value) {
+    final formatter = NumberFormat('#,##0', 'id_ID');
+    return 'Rp ${formatter.format(value)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.grey.shade100,
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ================= LEFT =================
-            Expanded(
-              flex: 3,
-              child: SingleChildScrollView(
+        // 🔥 RESPONSIF: kolom kiri & kanan jadi Row kalau lebar, ditumpuk Column kalau sempit
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool isNarrow = constraints.maxWidth < 900;
+
+            if (isNarrow) {
+              return SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    cardSPK(),
+                    _buildKolomKiriContent(),
                     const SizedBox(height: 15),
-                    cardSparepart(),
-                    const SizedBox(height: 15),
-                    cardRincian(),
-                    const SizedBox(height: 15),
-                    cardPembayaran(),
-                    const SizedBox(height: 80),
+                    summaryCard(),
+                    const SizedBox(height: 20),
                   ],
                 ),
-              ),
-            ),
+              );
+            }
 
-            const SizedBox(width: 20),
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ================= LEFT =================
+                Expanded(
+                  flex: 3,
+                  child: SingleChildScrollView(
+                    child: _buildKolomKiriContent(),
+                  ),
+                ),
 
-            // ================= RIGHT =================
-            Expanded(
-              flex: 1,
-              child: summaryCard(),
-            ),
-          ],
+                const SizedBox(width: 20),
+
+                // ================= RIGHT =================
+                Expanded(
+                  flex: 1,
+                  child: summaryCard(),
+                ),
+              ],
+            );
+          },
         ),
       ),
+    );
+  }
+
+  // 🔥 Isi kolom kiri (dipisah biar bisa dipakai ulang untuk mode lebar & sempit)
+  Widget _buildKolomKiriContent() {
+    return Column(
+      children: [
+        cardSPK(),
+        const SizedBox(height: 15),
+        cardSparepart(),
+        const SizedBox(height: 15),
+        cardRincian(),
+        const SizedBox(height: 15),
+        cardPembayaran(),
+        const SizedBox(height: 80),
+      ],
     );
   }
 
@@ -72,8 +104,9 @@ class _TambahServisPageState extends State<TambahServisPage> {
       "Data SPK",
       Column(
         children: [
-          SizedBox(
-            width: double.infinity,
+          // 🔥 RESPONSIF: DataTable bisa discroll horizontal kalau kolomnya kesempitan
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: DataTable(
               border: TableBorder.all(color: Colors.grey.shade300),
               columns: const [
@@ -93,7 +126,7 @@ class _TambahServisPageState extends State<TambahServisPage> {
                     ),
                     DataCell(Text(widget.spkData['nama_pelanggan'] ?? '-')),
                     DataCell(Text(widget.spkData['kendaraan'] ?? '-')),
-                    DataCell(Text("Rp ${widget.spkData['total_harga'] ?? 0}")),
+                    DataCell(Text(_formatRupiah(widget.spkData['total_harga'] ?? 0))),
                   ],
                 ),
               ],
@@ -111,8 +144,9 @@ class _TambahServisPageState extends State<TambahServisPage> {
       Column(
         children: [
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
+          // 🔥 RESPONSIF: DataTable bisa discroll horizontal kalau kolomnya kesempitan
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: DataTable(
               border: TableBorder.all(color: Colors.grey.shade300),
               columns: const [
@@ -129,8 +163,8 @@ class _TambahServisPageState extends State<TambahServisPage> {
                     DataCell(Text(item['nama'] ?? '-')),
                     DataCell(Text(item['kode'] ?? '-')),
                     DataCell(Text("${item['jumlah'] ?? 0}")),
-                    DataCell(Text("Rp ${item['harga_jual_saat_itu'] ?? 0}")),
-                    DataCell(Text("Rp ${item['subtotal'] ?? 0}")),
+                    DataCell(Text(_formatRupiah(item['harga_jual_saat_itu'] ?? 0))),
+                    DataCell(Text(_formatRupiah(item['subtotal'] ?? 0))),
                   ],
                 );
               }).toList(),
@@ -147,9 +181,9 @@ class _TambahServisPageState extends State<TambahServisPage> {
       "Rincian Biaya Akhir",
       Column(
         children: [
-          rowText("Biaya Jasa Servis", "Rp ${biayaJasa.toStringAsFixed(0)}"),
-          rowText("Total Biaya Sparepart", "Rp ${subtotalSparepart.toStringAsFixed(0)}"),
-          rowText("Pajak (PPN 11%)", "Rp ${pajak.toStringAsFixed(0)}"),
+          rowText("Biaya Jasa Servis", _formatRupiah(biayaJasa)),
+          rowText("Total Biaya Sparepart", _formatRupiah(subtotalSparepart)),
+          rowText("Pajak (PPN 11%)", _formatRupiah(pajak)),
         ],
       ),
     );
@@ -232,9 +266,9 @@ class _TambahServisPageState extends State<TambahServisPage> {
             ),
           ),
 
-          rowText("Subtotal Jasa", "Rp ${biayaJasa.toStringAsFixed(0)}"),
-          rowText("Subtotal Sparepart", "Rp ${subtotalSparepart.toStringAsFixed(0)}"),
-          rowText("Pajak (PPN 11%)", "Rp ${pajak.toStringAsFixed(0)}"),
+          rowText("Subtotal Jasa", _formatRupiah(biayaJasa)),
+          rowText("Subtotal Sparepart", _formatRupiah(subtotalSparepart)),
+          rowText("Pajak (PPN 11%)", _formatRupiah(pajak)),
 
           const Divider(),
 
@@ -242,7 +276,7 @@ class _TambahServisPageState extends State<TambahServisPage> {
           const SizedBox(height: 5),
 
           Text(
-            "Rp ${totalAkhir.toStringAsFixed(0)}",
+            _formatRupiah(totalAkhir),
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
 
