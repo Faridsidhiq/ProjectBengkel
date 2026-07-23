@@ -636,9 +636,14 @@ class _AkunMobilePageState extends State<AkunMobilePage> {
                     "Hubungi Customer Service", 
                     () async {
                       final Uri url = Uri.parse("https://wa.me/6285269864232?text=Halo%20Admin%20Jimu%20Mitsubishi,%20saya%20ingin%20berkonsultasi%20seputar%20servis%20mobil%20saya.");
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
-                      } else {
+                      try {
+                        bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                        if (!launched && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),
+                          );
+                        }
+                      } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),

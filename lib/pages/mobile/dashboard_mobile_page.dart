@@ -844,9 +844,14 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                               InkWell(
                                 onTap: () async {
                                   final Uri url = Uri.parse("https://wa.me/6285269864232");
-                                  if (await canLaunchUrl(url)) {
-                                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                                  } else {
+                                  try {
+                                    bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                    if (!launched && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),
+                                      );
+                                    }
+                                  } catch (e) {
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),

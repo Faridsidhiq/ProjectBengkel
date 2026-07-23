@@ -10,9 +10,14 @@ class DetailPerawatanPage extends StatelessWidget {
     final String message = "Halo Admin Jimu Mitsubishi, saya tertarik untuk memesan/bertanya mengenai layanan *$namaLayanan* untuk kendaraan saya. Mohon info jadwal servis yang tersedia. Terima kasih!";
     final Uri url = Uri.parse("https://wa.me/6285269864232?text=${Uri.encodeComponent(message)}");
     
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    try {
+      bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),
+        );
+      }
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),
