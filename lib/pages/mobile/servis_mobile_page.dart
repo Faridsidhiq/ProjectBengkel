@@ -53,7 +53,6 @@ class _ServisMobilePageState extends State<ServisMobilePage> {
               stream: FirebaseFirestore.instance
                   .collection('spk')
                   .where('email', isEqualTo: userEmail)
-                  .orderBy('created_at', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -66,14 +65,27 @@ class _ServisMobilePageState extends State<ServisMobilePage> {
                   return _buildEmptyState();
                 }
 
-                final listSpkBerjalan = snapshot.data!.docs.where((doc) {
+                // Urutkan data secara lokal (in-memory) berdasarkan created_at descending
+                final sortedDocs = snapshot.data!.docs.toList();
+                sortedDocs.sort((a, b) {
+                  final dataA = a.data();
+                  final dataB = b.data();
+                  final tA = dataA['created_at'] as Timestamp?;
+                  final tB = dataB['created_at'] as Timestamp?;
+                  if (tA == null && tB == null) return 0;
+                  if (tA == null) return 1;
+                  if (tB == null) return -1;
+                  return tB.compareTo(tA);
+                });
+
+                final listSpkBerjalan = sortedDocs.where((doc) {
                   final data = doc.data();
                   final status = (data['status'] ?? '').toString().toLowerCase();
                   final isHidden = data['is_hidden'] == true;
                   return status != 'selesai' && !isHidden; 
                 }).toList();
 
-                final listSpkSelesai = snapshot.data!.docs.where((doc) {
+                final listSpkSelesai = sortedDocs.where((doc) {
                   final data = doc.data();
                   final status = (data['status'] ?? '').toString().toLowerCase();
                   final isHidden = data['is_hidden'] == true;

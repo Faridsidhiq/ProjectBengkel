@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'detail_riwayat_page.dart';
 
 class RiwayatServisPage extends StatelessWidget {
   const RiwayatServisPage({super.key});
@@ -10,12 +11,12 @@ class RiwayatServisPage extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text("Riwayat Servis", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
         centerTitle: true,
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.black87,
         elevation: 0.5,
       ),
       body: user == null
@@ -27,7 +28,7 @@ class RiwayatServisPage extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: Colors.blue));
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -40,6 +41,18 @@ class RiwayatServisPage extends StatelessWidget {
                   return data['status'] == 'Selesai';
                 }).toList();
 
+                // Urutkan data secara lokal (in-memory) berdasarkan waktu_selesai descending
+                dokumenSelesai.sort((a, b) {
+                  final dataA = a.data() as Map<String, dynamic>;
+                  final dataB = b.data() as Map<String, dynamic>;
+                  final tA = dataA['waktu_selesai'] as Timestamp?;
+                  final tB = dataB['waktu_selesai'] as Timestamp?;
+                  if (tA == null && tB == null) return 0;
+                  if (tA == null) return 1;
+                  if (tB == null) return -1;
+                  return tB.compareTo(tA); // Descending (terbaru di atas)
+                });
+
                 if (dokumenSelesai.isEmpty) {
                   return _buildKosong();
                 }
@@ -50,97 +63,135 @@ class RiwayatServisPage extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final data = dokumenSelesai[index].data() as Map<String, dynamic>;
                     
+                    // Parse jenis_servis agar tampil rapi tanpa tanda kurung siku []
+                    List<String> listServis = [];
+                    if (data['jenis_servis'] != null) {
+                      if (data['jenis_servis'] is List) {
+                        listServis = List<String>.from(data['jenis_servis']);
+                      } else {
+                        listServis = data['jenis_servis'].toString().split(',').map((e) => e.trim()).toList();
+                      }
+                    }
+                    final jenisServisStr = listServis.isEmpty ? 'Servis Umum' : listServis.join(', ');
+
+                    final noSpk = data['no_spk'] ?? data['noSpk'] ?? '-';
+                    final tanggal = data['tanggal'] ?? '-';
+
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
+                      margin: const EdgeInsets.only(bottom: 14),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
                         boxShadow: [
-                          BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 4)),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03), 
+                            blurRadius: 8, 
+                            offset: const Offset(0, 3)
+                          ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // BAGIAN ATAS: PLAT & STATUS
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DetailRiwayatPage(data: data),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.directions_car, color: Colors.blue.shade700, size: 20),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      data['plat'] ?? 'Tanpa Plat',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue.shade900),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // BAGIAN ATAS: PLAT & STATUS & SPK
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16), 
+                                  topRight: Radius.circular(16)
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          data['plat']?.toString().toUpperCase() ?? 'Tanpa Plat',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900, 
+                                            fontSize: 14, 
+                                            color: Colors.blue.shade900
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "No. SPK: $noSpk",
+                                          style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade100,
-                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
-                                    "✓ Selesai",
-                                    style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 11),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          // BAGIAN TENGAH: DETAIL KENDARAAN & KELUHAN
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildDetailRow(Icons.branding_watermark, "Kendaraan", data['kendaraan'] ?? 'Tidak Diketahui'),
-                                const SizedBox(height: 10),
-                                _buildDetailRow(Icons.build_circle, "Jenis Servis", data['jenis_servis']?.toString() ?? 'Servis Umum'),
-                                const SizedBox(height: 16),
-                                
-                                // Garis Pembatas Putus-putus
-                                Row(
-                                  children: List.generate(
-                                    40,
-                                    (index) => Expanded(
-                                      child: Container(
-                                        color: index % 2 == 0 ? Colors.grey.shade300 : Colors.transparent,
-                                        height: 1.5,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      "Selesai",
+                                      style: TextStyle(
+                                        color: Colors.green.shade800, 
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: 10
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                const Text("Catatan / Keluhan:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54)),
-                                const SizedBox(height: 6),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.grey.shade200)
-                                  ),
-                                  child: Text(
-                                    data['keluhan'] ?? 'Tidak ada catatan tambahan',
-                                    style: const TextStyle(fontSize: 13, height: 1.4, color: Colors.black87),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            
+                            // BAGIAN TENGAH: DETAIL KENDARAAN & KELUHAN
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildDetailRow(Icons.branding_watermark, "Kendaraan", data['kendaraan'] ?? 'Tidak Diketahui'),
+                                  const SizedBox(height: 10),
+                                  _buildDetailRow(Icons.build_circle, "Jenis Servis", jenisServisStr),
+                                  const SizedBox(height: 10),
+                                  _buildDetailRow(Icons.calendar_today, "Tanggal Pengerjaan", tanggal),
+                                  const SizedBox(height: 14),
+                                  
+                                  // Garis Pembatas
+                                  const Divider(height: 1, thickness: 0.8),
+                                  const SizedBox(height: 12),
+                                  
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Lihat Detail Riwayat",
+                                        style: TextStyle(
+                                          color: Colors.blue.shade800, 
+                                          fontWeight: FontWeight.bold, 
+                                          fontSize: 11
+                                        ),
+                                      ),
+                                      Icon(Icons.arrow_forward_ios, size: 10, color: Colors.blue.shade800),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -150,23 +201,21 @@ class RiwayatServisPage extends StatelessWidget {
     );
   }
 
-  // Ganti fungsi pembantu ini di file riwayat_servis_page.dart
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade500),
+        Icon(icon, size: 15, color: Colors.grey.shade500),
         const SizedBox(width: 8),
-        // TAMBAHKAN EXPANDED DI SINI
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+              const SizedBox(height: 1),
               Text(
                 value, 
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
               ),
             ],
           ),
@@ -175,7 +224,6 @@ class RiwayatServisPage extends StatelessWidget {
     );
   }
 
-  // Tampilan ketika riwayat kosong
   Widget _buildKosong() {
     return Center(
       child: Column(

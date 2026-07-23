@@ -16,11 +16,13 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
 
   // ✅ FIX 1: Simpan user di state agar konsisten
   User? _user;
+  String _namaPelanggan = "Pengguna";
 
   @override
   void initState() {
     super.initState();
     _user = FirebaseAuth.instance.currentUser;
+    _ambilNamaPelanggan();
 
     // ✅ FIX 2: Debug - cek apakah user login dan punya email
     debugPrint("=== KELUHAN DEBUG ===");
@@ -28,6 +30,24 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
     debugPrint("User Email : ${_user?.email}");
     debugPrint("User Name  : ${_user?.displayName}");
     debugPrint("====================");
+  }
+
+  Future<void> _ambilNamaPelanggan() async {
+    if (_user != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('pelanggan')
+            .doc(_user!.uid)
+            .get();
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _namaPelanggan = userDoc['nama'] ?? 'Pengguna';
+          });
+        }
+      } catch (e) {
+        debugPrint("Error ambil nama pelanggan: $e");
+      }
+    }
   }
 
   @override
@@ -67,7 +87,7 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
       final docRef =
           await FirebaseFirestore.instance.collection('keluhan').add({
         'uid': _user!.uid, // ✅ Tambah UID untuk keamanan
-        'nama': _user!.displayName ?? _user!.email ?? 'Pengguna',
+        'nama': _namaPelanggan,
         'email': _user!.email!,
         'judul': judulController.text.trim(),
         'isi': isiController.text.trim(),
@@ -298,46 +318,12 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
                 stream: FirebaseFirestore.instance
                     .collection('keluhan')
                     .where('email', isEqualTo: _user!.email)
-                    .orderBy('created_at', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
                   // ✅ FIX 7: Tangkap error index Firestore
                   if (snapshot.hasError) {
                     final errorMsg = snapshot.error.toString();
                     debugPrint("FIRESTORE ERROR: $errorMsg");
-
-                    // Deteksi error index
-                    if (errorMsg.contains('FAILED_PRECONDITION') ||
-                        errorMsg.contains('index')) {
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.orange.shade700, size: 32),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Index Firestore belum dibuat.\nCek logcat untuk link pembuatan index.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: Colors.orange.shade800, fontSize: 13),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              "Detail: $errorMsg",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: Colors.orange.shade600, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
 
                     return Container(
                       padding: const EdgeInsets.all(16),
@@ -373,13 +359,26 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
                     );
                   }
 
+                  // Urutkan data secara lokal (in-memory) berdasarkan created_at descending
+                  final docs = snapshot.data!.docs.toList();
+                  docs.sort((a, b) {
+                    final dataA = a.data() as Map<String, dynamic>;
+                    final dataB = b.data() as Map<String, dynamic>;
+                    Timestamp? waktuA = dataA['created_at'] as Timestamp?;
+                    Timestamp? waktuB = dataB['created_at'] as Timestamp?;
+                    
+                    if (waktuA == null && waktuB == null) return 0;
+                    if (waktuA == null) return 1;
+                    if (waktuB == null) return -1;
+                    return waktuB.compareTo(waktuA); // Mengurutkan dari yang terbaru (Descending)
+                  });
+
                   return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: snapshot.data!.docs.length,
+                    itemCount: docs.length,
                     itemBuilder: (context, index) {
-                      final data = snapshot.data!.docs[index].data()
-                          as Map<String, dynamic>;
+                      final data = docs[index].data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Menunggu';
                       final tanggapan = data['tanggapan'] ?? '';
 

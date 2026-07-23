@@ -14,10 +14,15 @@ class _RegisterMobilePageState extends State<RegisterMobilePage> {
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _telpController = TextEditingController();
-  final TextEditingController _platController = TextEditingController();
+  final TextEditingController _platNumberController = TextEditingController();
   final TextEditingController _kendaraanController = TextEditingController();
   final TextEditingController _kmController = TextEditingController(); // Controller Baru untuk KM
   final TextEditingController _passwordController = TextEditingController();
+
+  String _selectedPlatPrefix = "BE";
+  final List<String> _platPrefixes = [
+    "BE", "B", "D", "A", "AB", "AD", "L", "N", "DK", "BG", "BH", "BK", "BM", "BP", "BD", "BA", "KB", "DA", "KH", "KT", "DD", "PA"
+  ];
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -30,7 +35,7 @@ class _RegisterMobilePageState extends State<RegisterMobilePage> {
     if (_namaController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
         _telpController.text.trim().isEmpty ||
-        _platController.text.trim().isEmpty ||
+        _platNumberController.text.trim().isEmpty ||
         _kendaraanController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty) {
       _showSnackbar("Selain KM, seluruh form wajib diisi untuk keperluan data Bengkel!", isError: true);
@@ -48,6 +53,7 @@ class _RegisterMobilePageState extends State<RegisterMobilePage> {
       );
 
       final String userUid = userCredential.user!.uid;
+      final String platLengkap = "$_selectedPlatPrefix ${_platNumberController.text.trim()}".toUpperCase();
 
       // 3. Menyimpan Biodata Pelanggan ke tabel 'pelanggan' milik Admin
       await FirebaseFirestore.instance
@@ -59,7 +65,7 @@ class _RegisterMobilePageState extends State<RegisterMobilePage> {
         'nama': _namaController.text.trim(),
         'email': _emailController.text.trim().toLowerCase(),
         'telepon': _telpController.text.trim(),
-        'plat': _platController.text.trim().toUpperCase(), 
+        'plat': platLengkap, 
         'kendaraan': _kendaraanController.text.trim(),
         // Logika KM opsional: Jika diisi maka simpan angkanya, jika kosong simpan '-'
         'km': _kmController.text.trim().isNotEmpty ? _kmController.text.trim() : '-', 
@@ -108,7 +114,7 @@ class _RegisterMobilePageState extends State<RegisterMobilePage> {
     _namaController.dispose();
     _emailController.dispose();
     _telpController.dispose();
-    _platController.dispose();
+    _platNumberController.dispose();
     _kendaraanController.dispose();
     _kmController.dispose(); // Hapus controller memori KM
     _passwordController.dispose();
@@ -154,7 +160,63 @@ class _RegisterMobilePageState extends State<RegisterMobilePage> {
                 _buildInputField("Nama Lengkap", "Masukkan nama sesuai KTP", _namaController, Icons.person),
                 _buildInputField("Email Aktif", "contoh@email.com", _emailController, Icons.email, keyboardType: TextInputType.emailAddress),
                 _buildInputField("Nomor Telepon / WA", "0812XXXXXXXX", _telpController, Icons.phone, keyboardType: TextInputType.phone),
-                _buildInputField("Nomor Plat Kendaraan", "BE 1234 ABC", _platController, Icons.badge),
+                
+                // Input Plat Nomor (Dropdown Prefix + Textfield Sisa)
+                const Text("Nomor Plat Kendaraan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black54)),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedPlatPrefix,
+                            icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                            items: _platPrefixes.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _selectedPlatPrefix = newValue;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _platNumberController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            hintText: "1234 ABC",
+                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                            prefixIcon: const Icon(Icons.badge, size: 20, color: Colors.grey),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 _buildInputField("Model Kendaraan", "Xpander Cross / Pajero Sport", _kendaraanController, Icons.directions_car),
                 
                 // Input KM Baru (Opsional)

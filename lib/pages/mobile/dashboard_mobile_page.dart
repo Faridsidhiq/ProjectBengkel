@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:intl/intl.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 import 'keluhan_mobile_page.dart'; 
-import 'servis_mobile_page.dart'; 
 import 'akun_mobile_page.dart';
 import 'detail_perawatan_page.dart';
 import 'semua_perawatan_page.dart';
 import 'katalog_barang_page.dart'; 
+import 'simulasi_biaya_page.dart';
 import 'notifikasi_mobile_page.dart';
+import 'tracking_pelanggan_page.dart';
 
 class DashboardMobilePage extends StatefulWidget {
   const DashboardMobilePage({super.key});
@@ -204,20 +206,50 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
       ]
     },
     {
-      "icon": Icons.calendar_month, 
-      "title": "Booking Servis",
-      "image": "assets/booking.png",
-      "deskripsi": "Fitur penjadwalan servis instan untuk menghindari antrean panjang di bengkel.",
-      "estimasi": "Instan", "garansi": "-", "interval": "-", "harga": "Tanpa Biaya Tambahan",
-      "pekerjaan": ["Pilih hari & jam servis", "Konfirmasi kedatangan"]
+      "icon": Icons.ac_unit, 
+      "title": "Service AC Mobil",
+      "image": "assets/manual.png",
+      "deskripsi": "Perawatan sistem pendingin kabin mobil agar tetap dingin, bersih, dan bebas bakteri.",
+      "estimasi": "1 - 3 Jam",
+      "garansi": "Tersedia",
+      "interval": "Tiap 20.000 Km / 1 Tahun",
+      "harga": "Rp150.000 - Rp350.000 (Jasa)",
+      "pekerjaan": [
+        "Pembersihan Evaporator dan Kondensor.",
+        "Cek tekanan dan isi ulang freon (refrigerant).",
+        "Penggantian filter AC kabin.",
+        "Deteksi kebocoran selang AC."
+      ]
     },
     {
-      "icon": Icons.history, 
-      "title": "Riwayat",
-      "image": "assets/history.png",
-      "deskripsi": "Melihat riwayat servis yang pernah dilakukan.",
-      "estimasi": "-", "garansi": "-", "interval": "-", "harga": "-",
-      "pekerjaan": ["Melihat nota", "Mengecek pengerjaan"]
+      "icon": Icons.directions_car, 
+      "title": "Spooring & Balancing",
+      "image": "assets/manual.png",
+      "deskripsi": "Penyelarasan sudut roda kemudi agar stabil dan lurus serta menyeimbangkan bobot ban.",
+      "estimasi": "1 Jam",
+      "garansi": "Tersedia (2 Minggu)",
+      "interval": "Tiap 10.000 Km",
+      "harga": "Rp150.000 - Rp250.000 (Jasa & Alat)",
+      "pekerjaan": [
+        "Penyesuaian sudut Camber, Caster, dan Toe.",
+        "Pemasangan timah penyeimbang roda.",
+        "Pengecekan keausan permukaan tapak ban."
+      ]
+    },
+    {
+      "icon": Icons.format_paint, 
+      "title": "Body Repair & Detailing",
+      "image": "assets/manual.png",
+      "deskripsi": "Perbaikan body mobil penyok/gores serta detailing cat luar agar kembali mengkilap.",
+      "estimasi": "Tergantung Kerusakan",
+      "garansi": "Tersedia",
+      "interval": "Sesuai Kebutuhan",
+      "harga": "Fleksibel (Sesuai Kerusakan)",
+      "pekerjaan": [
+        "Perataan body penyok (ketok magic / panel repair).",
+        "Pengecatan ulang per panel atau seluruh body.",
+        "Polishing body luar, pembersihan jamur kaca, dan interior detailing."
+      ]
     },
   ];
 
@@ -266,9 +298,15 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
+        child: GestureDetector(
+          onTap: () {
+            FocusScope.of(context).unfocus();
+          },
+          behavior: HitTestBehavior.translucent,
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              children: [
               // ================= HEADER =================
               Container(
                 margin: const EdgeInsets.all(12),
@@ -326,6 +364,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
       children: [
         IconButton(
           onPressed: () {
+            FocusScope.of(context).unfocus();
             Navigator.push(context, MaterialPageRoute(builder: (_) => const NotifikasiMobilePage()));
           },
           icon: const Icon(Icons.notifications_active, color: Colors.orange),
@@ -346,6 +385,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                     // FITUR BARU: Ikon User bisa diklik dan lompat ke AkunMobilePage
                     InkWell(
                       onTap: () {
+                        FocusScope.of(context).unfocus();
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const AkunMobilePage()),
@@ -366,6 +406,10 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
                   controller: _searchLayananController,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) {
+                    FocusScope.of(context).unfocus();
+                  },
                   onChanged: (value) {
                     setState(() {
                       _keywordLayanan = value.toLowerCase();
@@ -396,7 +440,51 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+
+
+              // ================= LIVE TRACKING / STATUS SERVIS BANNER =================
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('spk')
+                    .where('email', isEqualTo: user?.email)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return _buildLacakServisBanner(context);
+                  }
+
+                  // Urutkan SPK secara lokal berdasarkan waktu_dibuat descending
+                  final docs = snapshot.data!.docs.toList();
+                  docs.sort((a, b) {
+                    final dataA = a.data() as Map<String, dynamic>;
+                    final dataB = b.data() as Map<String, dynamic>;
+                    final tA = dataA['waktu_dibuat'] as Timestamp?;
+                    final tB = dataB['waktu_dibuat'] as Timestamp?;
+                    if (tA == null && tB == null) return 0;
+                    if (tA == null) return 1;
+                    if (tB == null) return -1;
+                    return tB.compareTo(tA);
+                  });
+
+                  final doc = docs.first;
+                  final docData = doc.data() as Map<String, dynamic>;
+                  final statusServis = docData['status'] ?? 'Menunggu';
+                  final isHidden = docData['is_hidden'] == true;
+
+                  if (statusServis != 'Selesai') {
+                    // Jika status pengerjaan belum selesai, tampilkan card progress aktif
+                    return _buildActiveServiceCard(context, docData);
+                  } else if (statusServis == 'Selesai' && !isHidden) {
+                    // Jika status selesai tapi belum disembunyikan
+                    return _buildCompletedServiceCard(context, doc.id, docData);
+                  } else {
+                    // Jika tidak ada pengerjaan aktif/sudah disembunyikan, tampilkan banner netral biasa
+                    return _buildLacakServisBanner(context);
+                  }
+                },
+              ),
+
+              const SizedBox(height: 10),
 
               // ================= JUDUL LAYANAN =================
               const Padding(
@@ -442,6 +530,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                           return InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
+                              FocusScope.of(context).unfocus();
                               final title = layananTerfilter[index]["title"];
                               
                               if (title == "Keluhan") {
@@ -509,6 +598,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
                     onTap: () {
+                      FocusScope.of(context).unfocus();
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const KatalogBarangPage()),
@@ -550,13 +640,65 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                       );
                     }
 
-                    final docs = snapshot.data!.docs;
+                    final allDocs = snapshot.data!.docs;
+                    // Tampilkan maksimal 5 item saja di dashboard
+                    final docs = allDocs.take(5).toList();
 
                     return ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      itemCount: docs.length,
+                      itemCount: docs.length + 1,
                       itemBuilder: (context, index) {
+                        if (index == docs.length) {
+                          return InkWell(
+                            onTap: () {
+                              FocusScope.of(context).unfocus();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const KatalogBarangPage()),
+                              );
+                            },
+                            child: Container(
+                              width: 130,
+                              margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(color: Colors.blue.shade300, width: 1.5), 
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: Colors.blue.shade100,
+                                    child: Icon(Icons.arrow_forward, color: Colors.blue.shade800),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    "Lihat Semua",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12, 
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "Katalog Barang",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.blue.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
                         final data = docs[index].data() as Map<String, dynamic>;
                         
                         String kategoriBarang = data['kategori'] ?? "Oli & Cairan";
@@ -699,18 +841,37 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.phone_android, color: Colors.blue.shade700, size: 14),
-                                  const SizedBox(width: 4),
-                                  const Expanded(
-                                    child: Text(
-                                      "0852-6986-4232\n(WhatsApp Chat)",
-                                      style: TextStyle(color: Colors.black87, fontSize: 11, height: 1.4),
+                              InkWell(
+                                onTap: () async {
+                                  final Uri url = Uri.parse("https://wa.me/6285269864232");
+                                  if (await canLaunchUrl(url)) {
+                                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("Tidak dapat membuka WhatsApp")),
+                                      );
+                                    }
+                                  }
+                                },
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.phone_android, color: Colors.blue.shade700, size: 14),
+                                    const SizedBox(width: 4),
+                                    const Expanded(
+                                      child: Text(
+                                        "0852-6986-4232\n(WhatsApp Chat)",
+                                        style: TextStyle(
+                                          color: Colors.blue,
+                                          decoration: TextDecoration.underline,
+                                          fontSize: 11,
+                                          height: 1.4,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -725,12 +886,6 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                     Center(
                       child: Column(
                         children: [
-                          const Text(
-                            "© 2026 PT Karya Baik Bersama, Indonesia",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey, fontSize: 10),
-                          ),
-                          const SizedBox(height: 2),
                           Text(
                             "Login sebagai: ${user?.email ?? 'Pengguna'}",
                             textAlign: TextAlign.center,
@@ -747,6 +902,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
           ),
         ),
       ),
+    ),
 
       // ================= BOTTOM NAVIGATION =================
       bottomNavigationBar: BottomNavigationBar(
@@ -755,10 +911,11 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
+          FocusScope.of(context).unfocus();
           if (index == 1) {
             Navigator.push(
               context, 
-              MaterialPageRoute(builder: (_) => const ServisMobilePage()),
+              MaterialPageRoute(builder: (_) => SimulasiBiayaPage(daftarLayanan: semuaLayanan)),
             );
           } else if (index == 2) {
             Navigator.push(
@@ -769,8 +926,324 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Beranda"),
-          BottomNavigationBarItem(icon: Icon(Icons.build), label: "Servis"),
+          BottomNavigationBarItem(icon: Icon(Icons.calculate), label: "Estimasi"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Akun"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLacakServisBanner(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TrackingPelangganPage()),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.airport_shuttle_rounded, color: Colors.blue.shade800, size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Lacak Proses Servis",
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "Periksa status pengerjaan mobil Anda secara real-time",
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveServiceCard(BuildContext context, Map<String, dynamic> docData) {
+    final statusServis = docData['status'] ?? 'Menunggu';
+    final namaKendaraan = docData['kendaraan'] ?? 'Mobil Saya';
+    final namaMontir = docData['nama_montir'] ?? 'Menunggu mekanik';
+    
+    // Checklist
+    List<Map<String, dynamic>> listPekerjaan = [];
+    if (docData['items'] != null) {
+      listPekerjaan = List<Map<String, dynamic>>.from(docData['items']);
+    }
+    
+    int totalTugas = listPekerjaan.length;
+    int tugasSelesai = listPekerjaan.where((item) => item['status'] == 'Selesai').length;
+    double persenProgress = totalTugas > 0 ? (tugasSelesai / totalTugas) : 0.0;
+    
+
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TrackingPelangganPage()),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade900, Colors.blue.shade800],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.shade900.withOpacity(0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.insights, color: Colors.greenAccent, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      "SERVIS SEDANG BERJALAN",
+                      style: TextStyle(
+                        color: Colors.greenAccent.shade100,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusServis.toString().toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white, 
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              namaKendaraan,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Montir: $namaMontir",
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "$tugasSelesai dari $totalTugas Tugas Selesai",
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                Text(
+                  "${(persenProgress * 100).toInt()}%",
+                  style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: persenProgress,
+                backgroundColor: Colors.white12,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
+                minHeight: 6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sembunyikanDariDashboard(String docId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('spk')
+          .doc(docId)
+          .update({'is_hidden': true});
+    } catch (e) {
+      debugPrint("Gagal menyembunyikan SPK: $e");
+    }
+  }
+
+  Widget _buildCompletedServiceCard(BuildContext context, String docId, Map<String, dynamic> docData) {
+    final namaKendaraan = docData['kendaraan'] ?? 'Mobil Saya';
+    final plat = docData['plat'] ?? '-';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade800, Colors.green.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.shade900.withOpacity(0.3),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    "SERVIS SELESAI 🎉",
+                    style: TextStyle(
+                      color: Colors.greenAccent.shade100,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => _sembunyikanDariDashboard(docId),
+                child: const Icon(Icons.close, color: Colors.white70, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "$namaKendaraan (${plat.toString().toUpperCase()})",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "Kendaraan Anda telah selesai diperbaiki dan siap diambil. Silakan menuju kasir untuk administrasi.",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => _sembunyikanDariDashboard(docId),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white70,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: const Text(
+                  "Sembunyikan", 
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  FocusScope.of(context).unfocus();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TrackingPelangganPage()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.green.shade800,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: const Text(
+                  "Lacak Detail",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
