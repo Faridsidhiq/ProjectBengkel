@@ -142,15 +142,18 @@ class _SpkPageState extends State<SpkPage> {
 
         // ================= HITUNG STATUS =================
         final totalSemua = semuaData.length;
-        final totalMenunggu = semuaData
-            .where((d) => d['status'] == 'Menunggu')
-            .length;
-        final totalProses = semuaData
-            .where((d) => d['status'] == 'Proses')
-            .length;
-        final totalSelesai = semuaData
-            .where((d) => d['status'] == 'Selesai')
-            .length;
+        final totalMenunggu = semuaData.where((d) {
+          final s = ((d.data() as Map<String, dynamic>)['status'] ?? '').toString().trim().toLowerCase();
+          return s == 'menunggu';
+        }).length;
+        final totalProses = semuaData.where((d) {
+          final s = ((d.data() as Map<String, dynamic>)['status'] ?? '').toString().trim().toLowerCase();
+          return s == 'proses' || s == 'berlangsung' || s == 'berjalan' || s == 'sedang proses';
+        }).length;
+        final totalSelesai = semuaData.where((d) {
+          final s = ((d.data() as Map<String, dynamic>)['status'] ?? '').toString().trim().toLowerCase();
+          return s == 'selesai';
+        }).length;
 
         // ================= FILTER SEARCH =================
         final query = searchController.text.toLowerCase();

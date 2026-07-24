@@ -17,17 +17,46 @@ class _PelangganPageState extends State<PelangganPage> {
   int currentPage = 1;
   int rowsPerPage = 5;
 
-  Future<void> hapusData(String id) async {
-    await FirebaseFirestore.instance
-        .collection('pelanggan')
-        .doc(id)
-        .delete();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Data berhasil dihapus")),
+  Future<void> hapusData(String id, String nama) async {
+    final konfirmasi = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Hapus Data Pelanggan"),
+        content: Text(
+          'Yakin ingin menghapus "$nama"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
     );
+
+    if (konfirmasi == true) {
+      await FirebaseFirestore.instance
+          .collection('pelanggan')
+          .doc(id)
+          .delete();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Data pelanggan "$nama" berhasil dihapus'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
 void editData(DocumentSnapshot doc) {
@@ -534,7 +563,7 @@ void editData(DocumentSnapshot doc) {
 
                                                     // 🗑️ DELETE
                                                     GestureDetector(
-                                                      onTap: () => hapusData(doc.id),
+                                                      onTap: () => hapusData(doc.id, d['nama'] ?? ''),
                                                       child: Container(
                                                         padding: const EdgeInsets.all(6),
                                                         decoration: BoxDecoration(

@@ -31,14 +31,43 @@ class _MontirPageState extends State<MontirPage> {
   }
 
   // HAPUS DATA
-  Future<void> hapusData(String id) async {
-    await FirebaseFirestore.instance.collection('montir').doc(id).delete();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Data montir dihapus")),
+  Future<void> hapusData(String id, String nama) async {
+    final konfirmasi = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Hapus Data Montir"),
+        content: Text(
+          'Yakin ingin menghapus "$nama"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
     );
+
+    if (konfirmasi == true) {
+      await FirebaseFirestore.instance.collection('montir').doc(id).delete();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Data montir "$nama" berhasil dihapus'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   // INPUT (UNTUK EDIT)
@@ -388,7 +417,7 @@ class _MontirPageState extends State<MontirPage> {
                                             const SizedBox(width: 6),
 
                                             GestureDetector(
-                                              onTap: () => hapusData(doc.id),
+                                              onTap: () => hapusData(doc.id, d['nama'] ?? ''),
                                               child: Container(
                                                 padding: const EdgeInsets.all(6),
                                                 decoration: BoxDecoration(
