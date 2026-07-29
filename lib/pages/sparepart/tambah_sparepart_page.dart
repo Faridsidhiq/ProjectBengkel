@@ -203,6 +203,12 @@ class _TambahSparepartPageState extends State<TambahSparepartPage> {
       );
       return;
     }
+    if (minStokController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ Minimal Stok wajib diisi"), backgroundColor: Colors.red),
+      );
+      return;
+    }
 
     setState(() => isLoading = true);
 
@@ -463,11 +469,11 @@ class _TambahSparepartPageState extends State<TambahSparepartPage> {
           isRupiah: true,
         ),
 
-        _buildLabel("Minimal Stok", wajib: false),
+        _buildLabel("Minimal Stok", wajib: true),
         _buildTextField(
           controller: minStokController,
           hint: "Contoh: 3",
-          helper: "Opsional — batas peringatan stok menipis",
+          helper: "Batas peringatan stok menipis",
         ),
       ],
     );

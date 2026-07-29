@@ -173,32 +173,60 @@ class _TambahServisPageState extends State<TambahServisPage> {
       Column(
         children: [
           const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              border: TableBorder.all(color: Colors.grey.shade300),
-              headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
-              columns: const [
-                DataColumn(label: Text("No.")),
-                DataColumn(label: Text("Jenis Pekerjaan / Jasa Servis")),
-                DataColumn(label: Text("Biaya Jasa")),
-              ],
-              rows: List.generate(items.length, (i) {
-                final nama = items[i].toString();
-                final harga = _hargaServisDefault[nama] ?? 0;
-                return DataRow(cells: [
-                  DataCell(Text("${i + 1}")),
-                  DataCell(Text(nama)),
-                  DataCell(Text(
-                    harga == 0 ? "Sesuai Kesepakatan" : _formatRupiah(harga),
-                    style: TextStyle(
-                      color: harga == 0 ? Colors.orange : Colors.black,
-                    ),
-                  )),
-                ]);
-              }),
-            ),
-          ),
+          LayoutBuilder(builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  border: TableBorder.all(color: Colors.grey.shade300),
+                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+                  columns: const [
+                    DataColumn(label: Text("No.")),
+                    DataColumn(label: Text("Jenis Pekerjaan / Jasa Servis")),
+                    DataColumn(label: Text("Biaya Jasa")),
+                  ],
+                  rows: List.generate(items.length, (i) {
+                    final nama = items[i].toString();
+                    
+                    // Cek apakah ada data di widget.spkData['items']
+                    final List<dynamic> spkItemsArray = (widget.spkData['items'] as List?) ?? [];
+                    int hargaItem = 0;
+                    bool itemDitemukan = false;
+                    
+                    try {
+                      final mapItem = spkItemsArray.firstWhere(
+                        (element) => (element as Map)['nama'] == nama, 
+                        orElse: () => null
+                      );
+                      if (mapItem != null) {
+                        hargaItem = (mapItem['harga'] ?? 0) as int;
+                        itemDitemukan = true;
+                      }
+                    } catch(e) {
+                      // Ignore
+                    }
+
+                    final hargaDefault = _hargaServisDefault[nama] ?? 0;
+                    
+                    // Jika ditemukan di items (terutama yg fleksibel dan harganya diset di SPK), pakai itu.
+                    final hargaFinal = itemDitemukan ? hargaItem : hargaDefault;
+
+                    return DataRow(cells: [
+                      DataCell(Text("${i + 1}")),
+                      DataCell(Text(nama)),
+                      DataCell(Text(
+                        (hargaDefault == 0 && hargaFinal == 0) ? "Sesuai Kesepakatan" : _formatRupiah(hargaFinal),
+                        style: TextStyle(
+                          color: (hargaDefault == 0 && hargaFinal == 0) ? Colors.orange : Colors.black,
+                        ),
+                      )),
+                    ]);
+                  }),
+                ),
+              ),
+            );
+          }),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
@@ -233,32 +261,37 @@ class _TambahServisPageState extends State<TambahServisPage> {
       Column(
         children: [
           const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              border: TableBorder.all(color: Colors.grey.shade300),
-              headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
-              columns: const [
-                DataColumn(label: Text("No.")),
-                DataColumn(label: Text("Nama")),
-                DataColumn(label: Text("Kode")),
-                DataColumn(label: Text("Jumlah")),
-                DataColumn(label: Text("Harga")),
-                DataColumn(label: Text("Total")),
-              ],
-              rows: List.generate(sparepartList.length, (i) {
-                final item = sparepartList[i];
-                return DataRow(cells: [
-                  DataCell(Text("${i + 1}")),
-                  DataCell(Text(item['nama'] ?? '-')),
-                  DataCell(Text(item['kode'] ?? '-')),
-                  DataCell(Text("${item['jumlah'] ?? 0}")),
-                  DataCell(Text(_formatRupiah(item['harga_jual_saat_itu'] ?? 0))),
-                  DataCell(Text(_formatRupiah(item['subtotal'] ?? 0))),
-                ]);
-              }),
-            ),
-          ),
+          LayoutBuilder(builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  border: TableBorder.all(color: Colors.grey.shade300),
+                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+                  columns: const [
+                    DataColumn(label: Text("No.")),
+                    DataColumn(label: Text("Nama")),
+                    DataColumn(label: Text("Kode")),
+                    DataColumn(label: Text("Jumlah")),
+                    DataColumn(label: Text("Harga")),
+                    DataColumn(label: Text("Total")),
+                  ],
+                  rows: List.generate(sparepartList.length, (i) {
+                    final item = sparepartList[i];
+                    return DataRow(cells: [
+                      DataCell(Text("${i + 1}")),
+                      DataCell(Text(item['nama'] ?? '-')),
+                      DataCell(Text(item['kode'] ?? '-')),
+                      DataCell(Text("${item['jumlah'] ?? 0}")),
+                      DataCell(Text(_formatRupiah(item['harga_jual_saat_itu'] ?? 0))),
+                      DataCell(Text(_formatRupiah(item['subtotal'] ?? 0))),
+                    ]);
+                  }),
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -432,6 +465,7 @@ class _TambahServisPageState extends State<TambahServisPage> {
         'plat': widget.spkData['plat'],
         'sparepart': widget.spkData['sparepart'] ?? [],
         'jenis_servis': widget.spkData['jenis_servis'] ?? [],
+        'items': widget.spkData['items'] ?? [], // Save the flexible items data
         'biaya_jasa': biayaJasa,
         'total_harga': subtotalSparepart,
         'pajak': 0,

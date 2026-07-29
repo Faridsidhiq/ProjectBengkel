@@ -16,11 +16,13 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
 
   // ✅ FIX 1: Simpan user di state agar konsisten
   User? _user;
+  String _namaPelanggan = "Pengguna";
 
   @override
   void initState() {
     super.initState();
     _user = FirebaseAuth.instance.currentUser;
+    _ambilNamaPelanggan();
 
     // ✅ FIX 2: Debug - cek apakah user login dan punya email
     debugPrint("=== KELUHAN DEBUG ===");
@@ -28,6 +30,24 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
     debugPrint("User Email : ${_user?.email}");
     debugPrint("User Name  : ${_user?.displayName}");
     debugPrint("====================");
+  }
+
+  Future<void> _ambilNamaPelanggan() async {
+    if (_user != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('pelanggan')
+            .doc(_user!.uid)
+            .get();
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _namaPelanggan = userDoc['nama'] ?? 'Pengguna';
+          });
+        }
+      } catch (e) {
+        debugPrint("Error ambil nama pelanggan: $e");
+      }
+    }
   }
 
   @override
@@ -63,36 +83,17 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
     setState(() => isLoading = true);
 
     try {
-      // ✅ BATASI: Cek apakah user sudah punya keluhan aktif yang belum selesai
-      final existingCheck = await FirebaseFirestore.instance
-          .collection('keluhan')
-          .where('email', isEqualTo: _user!.email)
-          .get();
-
-      final activeComplaints = existingCheck.docs.where((doc) {
-        final status = (doc.data()['status'] ?? '').toString().trim().toLowerCase();
-        return status != 'selesai';
-      }).toList();
-
-      if (activeComplaints.isNotEmpty) {
-        setState(() => isLoading = false);
-        _showSnackbar(
-            "Anda sudah mengirimkan keluhan. Harap tunggu tanggapan dari admin.",
-            isError: true);
-        return;
-      }
-
-      // ✅ SIMPAN KELUHAN
+      // ✅ FIX 4: Gunakan _user yang sudah dicek (bukan ambil ulang)
       final docRef =
           await FirebaseFirestore.instance.collection('keluhan').add({
-        'uid': _user!.uid,
-        'nama': _user!.displayName ?? _user!.email ?? 'Pengguna',
+        'uid': _user!.uid, // ✅ Tambah UID untuk keamanan
+        'nama': _namaPelanggan,
         'email': _user!.email!,
         'judul': judulController.text.trim(),
         'isi': isiController.text.trim(),
         'status': 'Menunggu',
         'tanggapan': '',
-        'created_at': FieldValue.serverTimestamp(),
+        'created_at': FieldValue.serverTimestamp(), // ✅ Lebih akurat dari Timestamp.now()
       });
 
       debugPrint("Keluhan berhasil disimpan dengan ID: ${docRef.id}");
@@ -175,63 +176,111 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
 
             const SizedBox(height: 20),
 
-            // FORM / STATUS KELUHAN TERKIRIM
-            if (_user != null && _user?.email != null)
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('keluhan')
-                    .where('email', isEqualTo: _user!.email)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  final docs = snapshot.data?.docs ?? [];
-                  final activeComplaints = docs.where((doc) {
-                    final status = (doc.data() as Map<String, dynamic>)['status']
-                        .toString()
-                        .trim()
-                        .toLowerCase();
-                    return status != 'selesai';
-                  }).toList();
+            // FORM KELUHAN
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Tulis Keluhan Anda",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Keluhan akan ditinjau oleh tim kami",
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                  if (activeComplaints.isNotEmpty) {
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange.shade300),
+                  // JUDUL
+                  const Text(
+                    "Judul Keluhan",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: judulController,
+                    decoration: InputDecoration(
+                      hintText: "Contoh: Mesin bunyi kasar",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Column(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.orange.shade800, size: 40),
-                          const SizedBox(height: 12),
-                          Text(
-                            "Keluhan Anda Telah Terkirim",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange.shade900,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            "Anda sudah mengirimkan keluhan ke admin. Pelanggan hanya dapat mengirimkan 1 keluhan dalam satu waktu. Harap tunggu tanggapan dari admin pada riwayat keluhan di bawah ini.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.orange.shade900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
+                    ),
+                  ),
 
-                  return _buildFormKeluhan();
-                },
-              )
-            else
-              _buildFormKeluhan(),
+                  const SizedBox(height: 14),
+
+                  // ISI KELUHAN
+                  const Text(
+                    "Detail Keluhan",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: isiController,
+                    maxLines: 5,
+                    decoration: InputDecoration(
+                      hintText: "Ceritakan keluhan Anda secara detail...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // TOMBOL KIRIM
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade800,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: isLoading ? null : kirimKeluhan,
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send),
+                      label: Text(
+                        isLoading ? "Mengirim..." : "Kirim Keluhan",
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 24),
 
@@ -269,46 +318,12 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
                 stream: FirebaseFirestore.instance
                     .collection('keluhan')
                     .where('email', isEqualTo: _user!.email)
-                    .orderBy('created_at', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
                   // ✅ FIX 7: Tangkap error index Firestore
                   if (snapshot.hasError) {
                     final errorMsg = snapshot.error.toString();
                     debugPrint("FIRESTORE ERROR: $errorMsg");
-
-                    // Deteksi error index
-                    if (errorMsg.contains('FAILED_PRECONDITION') ||
-                        errorMsg.contains('index')) {
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.orange.shade700, size: 32),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Index Firestore belum dibuat.\nCek logcat untuk link pembuatan index.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: Colors.orange.shade800, fontSize: 13),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              "Detail: $errorMsg",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: Colors.orange.shade600, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
 
                     return Container(
                       padding: const EdgeInsets.all(16),
@@ -344,13 +359,26 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
                     );
                   }
 
+                  // Urutkan data secara lokal (in-memory) berdasarkan created_at descending
+                  final docs = snapshot.data!.docs.toList();
+                  docs.sort((a, b) {
+                    final dataA = a.data() as Map<String, dynamic>;
+                    final dataB = b.data() as Map<String, dynamic>;
+                    Timestamp? waktuA = dataA['created_at'] as Timestamp?;
+                    Timestamp? waktuB = dataB['created_at'] as Timestamp?;
+                    
+                    if (waktuA == null && waktuB == null) return 0;
+                    if (waktuA == null) return 1;
+                    if (waktuB == null) return -1;
+                    return waktuB.compareTo(waktuA); // Mengurutkan dari yang terbaru (Descending)
+                  });
+
                   return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: snapshot.data!.docs.length,
+                    itemCount: docs.length,
                     itemBuilder: (context, index) {
-                      final data = snapshot.data!.docs[index].data()
-                          as Map<String, dynamic>;
+                      final data = docs[index].data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Menunggu';
                       final tanggapan = data['tanggapan'] ?? '';
 
@@ -510,112 +538,5 @@ class _KeluhanMobilePageState extends State<KeluhanMobilePage> {
     if (diff.inDays < 7) return '${diff.inDays} hari lalu';
 
     return '${dt.day}/${dt.month}/${dt.year}';
-  }
-
-  Widget _buildFormKeluhan() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Tulis Keluhan Anda",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Keluhan akan ditinjau oleh tim kami",
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // JUDUL
-          const Text(
-            "Judul Keluhan",
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: judulController,
-            decoration: InputDecoration(
-              hintText: "Contoh: Mesin bunyi kasar",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // ISI KELUHAN
-          const Text(
-            "Detail Keluhan",
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: isiController,
-            maxLines: 5,
-            decoration: InputDecoration(
-              hintText: "Ceritakan keluhan Anda secara detail...",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // TOMBOL KIRIM
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade800,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: isLoading ? null : kirimKeluhan,
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.send),
-              label: Text(
-                isLoading ? "Mengirim..." : "Kirim Keluhan",
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

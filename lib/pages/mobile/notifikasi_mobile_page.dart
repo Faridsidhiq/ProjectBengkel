@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'riwayat_servis_page.dart'; 
-import 'detail_riwayat_page.dart'; // Tambahkan ini di atas
+import 'detail_riwayat_page.dart';
 
 class NotifikasiMobilePage extends StatelessWidget {
   const NotifikasiMobilePage({super.key});
@@ -14,7 +13,10 @@ class NotifikasiMobilePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text("Notifikasi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+        title: const Text(
+          "Notifikasi", 
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -29,7 +31,7 @@ class NotifikasiMobilePage extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: Colors.blue));
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -41,6 +43,18 @@ class NotifikasiMobilePage extends StatelessWidget {
                   final data = doc.data() as Map<String, dynamic>;
                   return data['status'] == 'Selesai';
                 }).toList();
+
+                // Urutkan notifikasi secara lokal (terbaru di atas)
+                notifSelesai.sort((a, b) {
+                  final dataA = a.data() as Map<String, dynamic>;
+                  final dataB = b.data() as Map<String, dynamic>;
+                  final tA = dataA['waktu_selesai'] as Timestamp?;
+                  final tB = dataB['waktu_selesai'] as Timestamp?;
+                  if (tA == null && tB == null) return 0;
+                  if (tA == null) return 1;
+                  if (tB == null) return -1;
+                  return tB.compareTo(tA);
+                });
 
                 if (notifSelesai.isEmpty) {
                   return _buildKosong();
@@ -55,67 +69,130 @@ class NotifikasiMobilePage extends StatelessWidget {
                     
                     // Cek apakah pesan ini sudah dibaca atau belum
                     bool sudahDibaca = data['notif_dibaca'] == true;
-                    
-                    return Card(
-                      elevation: sudahDibaca ? 0 : 2, // Jika belum dibaca, card sedikit menonjol
-                      color: sudahDibaca ? Colors.grey.shade100 : Colors.white, // Warna beda jika belum dibaca
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: sudahDibaca ? Colors.transparent : Colors.blue.shade200),
-                      ),
+                    final noSpk = data['no_spk'] ?? data['noSpk'] ?? '-';
+                    final plat = data['plat']?.toString().toUpperCase() ?? '-';
+                    final kendaraan = data['kendaraan'] ?? 'Mobil';
+
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        leading: CircleAvatar(
-                          backgroundColor: sudahDibaca ? Colors.grey.shade200 : Colors.green.shade50,
-                          child: Icon(
-                            sudahDibaca ? Icons.done_all : Icons.mark_email_unread, 
-                            color: sudahDibaca ? Colors.grey : Colors.green.shade600
-                          ),
+                      decoration: BoxDecoration(
+                        color: sudahDibaca ? Colors.grey.shade50 : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: sudahDibaca ? Colors.grey.shade200 : Colors.blue.shade100,
                         ),
-                        title: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Servis Selesai!",
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        boxShadow: [
+                          if (!sudahDibaca)
+                            BoxShadow(
+                              color: Colors.blue.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
-                            if (!sudahDibaca)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
-                                child: const Text("BARU", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                              )
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            "Kendaraan ${data['kendaraan'] ?? ''} (${data['plat'] ?? ''}) Anda telah selesai dikerjakan. Silakan cek riwayat untuk detailnya.",
-                            style: TextStyle(height: 1.4, color: Colors.grey.shade700, fontSize: 13),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: () async {
+                          // Update ke database bahwa notif sudah dibaca
+                          if (!sudahDibaca) {
+                            await FirebaseFirestore.instance
+                                .collection('spk')
+                                .doc(doc.id)
+                                .update({'notif_dibaca': true});
+                          }
+                          
+                          if (context.mounted) {
+                            Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (_) => DetailRiwayatPage(data: data)),
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Ikon Indikator
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: sudahDibaca 
+                                    ? Colors.grey.shade200 
+                                    : Colors.blue.shade50,
+                                child: Icon(
+                                  sudahDibaca ? Icons.done_all : Icons.notifications_active, 
+                                  color: sudahDibaca ? Colors.grey : Colors.blue.shade700,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              
+                              // Konten Notifikasi
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          "Servis Selesai! 🎉",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 14,
+                                            color: sudahDibaca ? Colors.grey.shade700 : Colors.black87,
+                                          ),
+                                        ),
+                                        if (!sudahDibaca)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.shade600, 
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Text(
+                                              "BARU", 
+                                              style: TextStyle(
+                                                color: Colors.white, 
+                                                fontSize: 8, 
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "No. SPK: $noSpk",
+                                      style: TextStyle(
+                                        fontSize: 10, 
+                                        fontWeight: FontWeight.bold, 
+                                        color: sudahDibaca ? Colors.grey.shade500 : Colors.blue.shade900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      "Mobil $kendaraan ($plat) Anda telah selesai diperbaiki dengan sukses. Ketuk untuk melihat laporan lengkap pengerjaan dan rincian biaya.",
+                                      style: TextStyle(
+                                        height: 1.4, 
+                                        color: sudahDibaca ? Colors.grey.shade600 : Colors.black87, 
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              
+                              // Chevron right
+                              Icon(
+                                Icons.arrow_forward_ios, 
+                                size: 12, 
+                                color: sudahDibaca ? Colors.grey.shade300 : Colors.grey.shade400,
+                              ),
+                            ],
                           ),
                         ),
-                        trailing: Icon(Icons.chevron_right, color: Colors.grey.shade400),
-                        
-                        // ==========================================
-                        // KETIKA DIKLIK, TANDAI SEBAGAI SUDAH DIBACA
-                        // ==========================================
-                        onTap: () async {
-                        // Update ke database bahwa notif sudah dibaca
-                        if (!sudahDibaca) {
-                          await FirebaseFirestore.instance.collection('spk').doc(doc.id).update({
-                            'notif_dibaca': true
-                          });
-                        }
-                        
-                        // PINDAH KE HALAMAN DETAIL KHUSUS (Bukan list riwayat umum lagi)
-                        if (context.mounted) {
-                          Navigator.push(
-                            context, 
-                            MaterialPageRoute(builder: (_) => DetailRiwayatPage(data: data))
-                          );
-                        }
-                      },
                       ),
                     );
                   },
@@ -130,11 +207,24 @@ class NotifikasiMobilePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text("Tidak Ada Notifikasi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.notifications_off_outlined, size: 60, color: Colors.blue.shade300),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "Tidak Ada Notifikasi", 
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+          ),
           const SizedBox(height: 8),
-          Text("Pemberitahuan servis Anda akan muncul di sini.", style: TextStyle(color: Colors.grey.shade500)),
+          Text(
+            "Pemberitahuan servis Anda akan muncul di sini.", 
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
         ],
       ),
     );

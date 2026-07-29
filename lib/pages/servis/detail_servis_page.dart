@@ -124,6 +124,7 @@ class DetailServisPage extends StatelessWidget {
     required Map<String, dynamic> data,
     required List sparepart,
     required List jenisServis,
+    required List itemsData,
     required double biayaJasa,
     required double subtotalSparepart,
     required double totalAkhir,
@@ -216,11 +217,29 @@ class DetailServisPage extends StatelessWidget {
                   headers: ["No.", "Jenis Pekerjaan / Jasa Servis", "Biaya Jasa"],
                   data: List.generate(jenisServis.length, (i) {
                     final nama = jenisServis[i].toString();
-                    final harga = _hargaServisDefault[nama] ?? 0;
+
+                    int hargaItem = 0;
+                    bool itemDitemukan = false;
+                    try {
+                      final mapItem = itemsData.firstWhere(
+                        (element) => (element as Map)['nama'] == nama, 
+                        orElse: () => null
+                      );
+                      if (mapItem != null) {
+                        hargaItem = (mapItem['harga'] ?? 0) as int;
+                        itemDitemukan = true;
+                      }
+                    } catch(e) {
+                      // Ignore
+                    }
+
+                    final hargaDefault = _hargaServisDefault[nama] ?? 0;
+                    final harga = itemDitemukan ? hargaItem : hargaDefault;
+                    
                     return [
                       (i + 1).toString().padLeft(2, '0'),
                       nama,
-                      harga == 0 ? "Sesuai Kesepakatan" : _rp(harga),
+                      (hargaDefault == 0 && harga == 0) ? "Sesuai Kesepakatan" : _rp(harga),
                     ];
                   }),
                   headerStyle: pw.TextStyle(
@@ -418,6 +437,7 @@ class DetailServisPage extends StatelessWidget {
 
                   final List sparepart = data['sparepart'] ?? [];
                   final List jenisServis = data['jenis_servis'] ?? [];
+                  final List itemsData = data['items'] ?? [];
                   final double biayaJasa =
                       (data['biaya_jasa'] ?? 0).toDouble();
                   final double subtotalSparepart =
@@ -455,6 +475,7 @@ class DetailServisPage extends StatelessWidget {
                                           data: data,
                                           sparepart: sparepart,
                                           jenisServis: jenisServis,
+                                          itemsData: itemsData,
                                           biayaJasa: biayaJasa,
                                           subtotalSparepart: subtotalSparepart,
                                           totalAkhir: totalAkhir,
@@ -473,6 +494,7 @@ class DetailServisPage extends StatelessWidget {
                                           data: data,
                                           sparepart: sparepart,
                                           jenisServis: jenisServis,
+                                          itemsData: itemsData,
                                           biayaJasa: biayaJasa,
                                           subtotalSparepart: subtotalSparepart,
                                           totalAkhir: totalAkhir,
@@ -508,6 +530,7 @@ class DetailServisPage extends StatelessWidget {
                                           data: data,
                                           sparepart: sparepart,
                                           jenisServis: jenisServis,
+                                          itemsData: itemsData,
                                           biayaJasa: biayaJasa,
                                           subtotalSparepart: subtotalSparepart,
                                           totalAkhir: totalAkhir,
@@ -527,6 +550,7 @@ class DetailServisPage extends StatelessWidget {
                                           data: data,
                                           sparepart: sparepart,
                                           jenisServis: jenisServis,
+                                          itemsData: itemsData,
                                           biayaJasa: biayaJasa,
                                           subtotalSparepart: subtotalSparepart,
                                           totalAkhir: totalAkhir,
@@ -726,7 +750,24 @@ class DetailServisPage extends StatelessWidget {
                                   const Divider(),
                                   ...List.generate(jenisServis.length, (i) {
                                     final nama = jenisServis[i].toString();
-                                    final harga = _hargaServisDefault[nama] ?? 0;
+                                    
+                                    int hargaItem = 0;
+                                    bool itemDitemukan = false;
+                                    try {
+                                      final mapItem = itemsData.firstWhere(
+                                        (element) => (element as Map)['nama'] == nama, 
+                                        orElse: () => null
+                                      );
+                                      if (mapItem != null) {
+                                        hargaItem = (mapItem['harga'] ?? 0) as int;
+                                        itemDitemukan = true;
+                                      }
+                                    } catch(e) {
+                                      // Ignore
+                                    }
+
+                                    final hargaDefault = _hargaServisDefault[nama] ?? 0;
+                                    final harga = itemDitemukan ? hargaItem : hargaDefault;
                                     final style = TextStyle(fontSize: isMobile ? 11 : 14);
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -738,10 +779,10 @@ class DetailServisPage extends StatelessWidget {
                                           Expanded(
                                             flex: 2,
                                             child: Text(
-                                              harga == 0 ? "Sesuai Kesepakatan" : _rp(harga),
+                                              (hargaDefault == 0 && harga == 0) ? "Sesuai Kesepakatan" : _rp(harga),
                                               style: TextStyle(
                                                 fontSize: isMobile ? 11 : 14,
-                                                color: harga == 0 ? Colors.orange : Colors.black,
+                                                color: (hargaDefault == 0 && harga == 0) ? Colors.orange : Colors.black,
                                               ),
                                             ),
                                           ),

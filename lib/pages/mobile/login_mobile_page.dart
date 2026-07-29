@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register_mobile_page.dart';
 import 'dashboard_mobile_page.dart';
 import 'dashboard_montir_page.dart';
-import '../auth/forgot_password_page.dart';
 
 class LoginMobilePage extends StatefulWidget {
   const LoginMobilePage({super.key});
@@ -18,6 +17,77 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   bool obscurePassword = true;
+
+  void _showResetPasswordDialog() {
+    final TextEditingController resetEmailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text("Reset Kata Sandi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Masukkan email akun Anda. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi.",
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: "Alamat Email",
+                  hintText: "nama@email.com",
+                  prefixIcon: const Icon(Icons.email),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+              onPressed: () async {
+                final email = resetEmailController.text.trim();
+                if (email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Email tidak boleh kosong!"), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Tautan reset kata sandi telah dikirim ke email Anda!"),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Gagal mengirim email reset: $e"), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text("Kirim", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> loginUser() async {
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
@@ -181,8 +251,6 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => loginUser(),
                   style: const TextStyle(fontSize: 14), 
                   decoration: InputDecoration(
                     hintText: "nama@email.com",
@@ -202,10 +270,9 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                 TextField(
                   controller: passwordController,
                   obscureText: obscurePassword,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => loginUser(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
+                    hintText: "Masukkan kata sandi",
                     prefixIcon: const Icon(Icons.lock, size: 20),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -213,11 +280,7 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                         size: 20,
                         color: Colors.grey,
                       ),
-                      onPressed: () {
-                        setState(() {
-                          obscurePassword = !obscurePassword;
-                        });
-                      },
+                      onPressed: () => setState(() => obscurePassword = !obscurePassword),
                     ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12), 
                     border: OutlineInputBorder(
@@ -225,7 +288,22 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20), 
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _showResetPasswordDialog,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      "Lupa Kata Sandi?",
+                      style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10), 
                 SizedBox(
                   width: double.infinity,
                   height: 42, 
@@ -247,23 +325,7 @@ class _LoginMobilePageState extends State<LoginMobilePage> {
                         : const Text("Masuk", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), 
                   ),
                 ),
-                const SizedBox(height: 10), 
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
-                      );
-                    },
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero), 
-                    child: Text(
-                      "Lupa Password?",
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10), 
+                const SizedBox(height: 15), 
                 Center(
                   child: TextButton(
                     onPressed: () {

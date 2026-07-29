@@ -251,51 +251,34 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: Row(
-                    children: [
-                      Image.asset('assets/logo.png', width: 35, errorBuilder: (c, e, s) => const Icon(Icons.car_repair, color: Colors.blue, size: 35)),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("JIMU MITSUBISHI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5), overflow: TextOverflow.ellipsis),
-                            Text("Bengkel Terbaik", style: TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    Image.asset('assets/logo.png', width: 35, errorBuilder: (c, e, s) => const Icon(Icons.car_repair, color: Colors.blue, size: 35)),
+                    const SizedBox(width: 8),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("JIMU MITSUBISHI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5)),
+                        Text("Bengkel Terbaik", style: TextStyle(color: Colors.grey, fontSize: 10)),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: InkWell(
-                    onTap: widget.onProfilePressed, 
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              "Halo, $namaMontir", 
-                              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Colors.orange.shade100,
-                            child: const Icon(Icons.face, size: 16, color: Colors.orange),
-                          )
-                        ],
-                      ),
+                InkWell(
+                  onTap: widget.onProfilePressed, 
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Row(
+                      children: [
+                        Text("Halo, $namaMontir", style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11)),
+                        const SizedBox(width: 6),
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Colors.orange.shade100,
+                          child: const Icon(Icons.face, size: 16, color: Colors.orange),
+                        )
+                      ],
                     ),
                   ),
                 )
@@ -450,21 +433,25 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              child: Text(data['plat'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(data['plat'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "No. SPK: ${data['no_spk'] ?? data['noSpk'] ?? '-'}",
+                                  style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold, fontSize: 11),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
                             _buildStatusBadge(status),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              child: Text(data['kendaraan'] ?? '-', style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 12), overflow: TextOverflow.ellipsis),
-                            ),
-                            const SizedBox(width: 8),
+                            Text(data['kendaraan'] ?? '-', style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 12)),
                             const Text("Lihat Detail SPK >", style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
                           ],
                         ),
@@ -540,10 +527,15 @@ class _KontenBerandaMontirState extends State<KontenBerandaMontir> with SingleTi
 // =========================================================================
 // 2. HALAMAN CEKLIST PROSES SERVIS (DIKEMBALIKAN UTUH 100%)
 // =========================================================================
-class HalamanProsesServis extends StatelessWidget {
+class HalamanProsesServis extends StatefulWidget {
   final VoidCallback onSelesaiSemua;
   const HalamanProsesServis({super.key, required this.onSelesaiSemua});
 
+  @override
+  State<HalamanProsesServis> createState() => _HalamanProsesServisState();
+}
+
+class _HalamanProsesServisState extends State<HalamanProsesServis> {
   // Fungsi pengonversi menit menjadi Hari, Jam, dan Menit
   String _formatEstimasi(String estimasiMentah) {
     int totalMenit = int.tryParse(estimasiMentah) ?? 0;
@@ -562,17 +554,282 @@ class HalamanProsesServis extends StatelessWidget {
     return parts.join(" ");
   }
 
+  void _bukaDetailSPK(BuildContext context, Map<String, dynamic> data) {
+    final List<dynamic> daftarSparepart = data['sparepart'] ?? [];
+    
+    String deskripsiServis = 'Servis Umum';
+    if (data['jenis_servis'] != null) {
+      if (data['jenis_servis'] is List) {
+        List listServis = data['jenis_servis'];
+        deskripsiServis = listServis.join(', ');
+      } else {
+        deskripsiServis = data['jenis_servis'].toString();
+      }
+    } else if (data['keluhan'] != null) {
+      deskripsiServis = data['keluhan'].toString();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24, right: 24, top: 12,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50, height: 5,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const Row(
+                children: [
+                  Icon(Icons.assignment, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text("Detail SPK Kendaraan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const Divider(height: 30),
+              
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailItem("Pelanggan", data['nama_pelanggan'] ?? '-'),
+                      _buildDetailItem("Kendaraan", data['kendaraan'] ?? '-'),
+                      _buildDetailItem("Plat Nomor", data['plat'] ?? '-'),
+                      _buildDetailItem("Jam Masuk", data['waktu'] ?? data['jam_masuk'] ?? '-'),
+                      const Divider(height: 30),
+                      
+                      const Text("Keluhan / Catatan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      Text(data['keluhan'] ?? 'Tidak ada keluhan spesifik dicatat.', style: const TextStyle(fontSize: 14)),
+                      const SizedBox(height: 16),
+                      
+                      const Text("Jenis Penanganan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      Text(deskripsiServis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 16),
+
+                      const Text("Sparepart & Kebutuhan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      if (daftarSparepart.isEmpty)
+                        const Text(
+                          "Tidak ada kebutuhan sparepart yang dicatat.", 
+                          style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.grey)
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: daftarSparepart.map((sp) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Text(
+                                  "- ${sp['nama']} (Qty: ${sp['jumlah']})",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateList(BuildContext context) {
+    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: const Text("Panel Kerja Mekanik", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0.5,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 40),
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
+                    child: Icon(Icons.car_repair_outlined, size: 60, color: Colors.blue.shade800),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Belum Ada SPK Aktif",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 6),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 40),
+                    child: Text(
+                      "Pilih salah satu SPK berjalan Anda di bawah ini untuk membuka panel kerja pengerjaan.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Daftar SPK Berjalan Anda",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('spk')
+                  .where('montir_uid', isEqualTo: currentUid)
+                  .where('status', isEqualTo: 'Berjalan')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+                }
+                
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "Tidak ada SPK berstatus 'Berjalan'. Silakan mulai kerja SPK baru di tab Beranda.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ),
+                  );
+                }
+
+                final docs = snapshot.data!.docs;
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final plat = data['plat'] ?? '-';
+                    final kendaraan = data['kendaraan'] ?? '-';
+                    final noSpk = data['no_spk'] ?? data['noSpk'] ?? '-';
+                    final tanggal = data['tanggal'] ?? '-';
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.blue.shade100, width: 1),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.blue.shade50,
+                          child: Icon(Icons.engineering, color: Colors.blue.shade800),
+                        ),
+                        title: Text(
+                          "$kendaraan ($plat)",
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          "No. SPK: $noSpk\nMasuk: $tanggal",
+                          style: const TextStyle(fontSize: 11, color: Colors.black54),
+                        ),
+                        trailing: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              spkAktifId = doc.id;
+                              spkAktifData = data;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade800,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                          child: const Text("Buka", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (spkAktifId == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            "Silakan pilih SPK di Beranda & klik 'BUKA PANEL KERJA' terlebih dahulu",
-            style: TextStyle(color: Colors.grey),
-          ),
-        ),
-      );
+      return _buildEmptyStateList(context);
     }
 
     return StreamBuilder<DocumentSnapshot>(
@@ -621,6 +878,15 @@ class HalamanProsesServis extends StatelessWidget {
         
         bool isSemuaSelesai = totalTugas > 0 && tugasSelesai == totalTugas;
 
+        int totalEstimasiMenit = 0;
+        for (var item in listPekerjaanDinamis) {
+          String est = item['estimasi'] ?? '0';
+          est = est.replaceAll(RegExp(r'[^0-9]'), '');
+          int menit = int.tryParse(est) ?? 0;
+          totalEstimasiMenit += menit;
+        }
+        String totalEstimasiFormat = _formatEstimasi(totalEstimasiMenit.toString());
+
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
           appBar: AppBar(
@@ -632,7 +898,7 @@ class HalamanProsesServis extends StatelessWidget {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                onSelesaiSemua();
+                widget.onSelesaiSemua();
               },
             ),
           ),
@@ -662,9 +928,28 @@ class HalamanProsesServis extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(docData['kendaraan'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-                              Text(docData['plat'] ?? '-', style: TextStyle(color: Colors.blue.shade100, fontSize: 13, fontWeight: FontWeight.w500)),
+                              Text(
+                                "No. SPK: ${docData['no_spk'] ?? docData['noSpk'] ?? '-'}", 
+                                style: TextStyle(color: Colors.blue.shade100, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(Icons.timer_outlined, color: Colors.white70, size: 12),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Total Est: $totalEstimasiFormat", 
+                                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.info_outline, color: Colors.white70),
+                          onPressed: () => _bukaDetailSPK(context, docData),
+                          tooltip: "Lihat Detail SPK",
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -720,7 +1005,6 @@ class HalamanProsesServis extends StatelessWidget {
                           final item = listPekerjaanDinamis[index];
                           String namaTugas = item['nama'] ?? 'Item Servis';
                           
-                          // MEMANGGIL FUNGSI FORMAT WAKTU DI SINI
                           String estimasiMentah = item['estimasi'] ?? '0';
                           String estimasiFormat = _formatEstimasi(estimasiMentah);
                           
@@ -748,7 +1032,6 @@ class HalamanProsesServis extends StatelessWidget {
                               subtitle: Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
-                                  // MENAMPILKAN FORMAT WAKTU YANG SUDAH RAPI
                                   isSelesai ? "Selesai ditangani" : "Estimasi pengerjaan: $estimasiFormat",
                                   style: TextStyle(fontSize: 11, color: isSelesai ? Colors.green : Colors.black54),
                                 ),
@@ -786,13 +1069,15 @@ class HalamanProsesServis extends StatelessWidget {
                               'waktu_selesai': Timestamp.now()
                             });
 
-                            spkAktifId = null;
-                            spkAktifData = null;
+                            setState(() {
+                              spkAktifId = null;
+                              spkAktifData = null;
+                            });
                             
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Laporan SPK berhasil dikirim, mobil siap diambil!")),
                             );
-                            onSelesaiSemua();
+                            widget.onSelesaiSemua();
                           }
                         : () {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -853,10 +1138,11 @@ class _ProfilePageState extends State<ProfilePage> {
             .get();
 
         if (query.docs.isNotEmpty) {
-          final data = query.docs.first.data();
+          final doc = query.docs.first;
+          final data = doc.data();
           setState(() {
             _namaMontir = data['nama'] ?? 'Mekanik';
-            _spesialisasi = data['spesialisasi'] ?? 'Mekanik Umum';
+            _spesialisasi = data['spesialis'] ?? 'Mekanik Umum';
           });
         }
 
@@ -914,9 +1200,6 @@ class _ProfilePageState extends State<ProfilePage> {
               await FirebaseAuth.instance.signOut();
               
               if (context.mounted) {
-                // MENGGUNAKAN NAVIGASI LANGSUNG (DIRECT ROUTING)
-                // GANTI tulisan "LoginPage()" di bawah ini dengan nama Class halaman login Anda!
-                // Contoh: LoginMobilePage(), LoginScreen(), LoginView(), dll.
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginMobilePage()), 
@@ -962,8 +1245,9 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Icon(Icons.engineering, size: 50, color: Colors.blue.shade800),
             ),
             const SizedBox(height: 16),
+            
             Text(_namaMontir, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1010,6 +1294,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const RiwayatKerjaMontirPage()));
                     },
                   ),
+
                 ],
               ),
             ),
@@ -1064,8 +1349,139 @@ class _ProfilePageState extends State<ProfilePage> {
 // =========================================================
 // 4. HALAMAN BARU: RIWAYAT PEKERJAAN MONTIR
 // =========================================================
-class RiwayatKerjaMontirPage extends StatelessWidget {
+class RiwayatKerjaMontirPage extends StatefulWidget {
   const RiwayatKerjaMontirPage({super.key});
+
+  @override
+  State<RiwayatKerjaMontirPage> createState() => _RiwayatKerjaMontirPageState();
+}
+
+class _RiwayatKerjaMontirPageState extends State<RiwayatKerjaMontirPage> {
+  String _keyword = "";
+  final TextEditingController _searchController = TextEditingController();
+
+  void _bukaDetailSPK(BuildContext context, Map<String, dynamic> data) {
+    final List<dynamic> daftarSparepart = data['sparepart'] ?? [];
+    
+    String deskripsiServis = 'Servis Umum';
+    if (data['jenis_servis'] != null) {
+      if (data['jenis_servis'] is List) {
+        List listServis = data['jenis_servis'];
+        deskripsiServis = listServis.join(', ');
+      } else {
+        deskripsiServis = data['jenis_servis'].toString();
+      }
+    } else if (data['keluhan'] != null) {
+      deskripsiServis = data['keluhan'].toString();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24, right: 24, top: 12,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50, height: 5,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const Row(
+                children: [
+                  Icon(Icons.assignment, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text("Detail SPK Kendaraan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const Divider(height: 30),
+              
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailItem("Pelanggan", data['nama_pelanggan'] ?? '-'),
+                      _buildDetailItem("Kendaraan", data['kendaraan'] ?? '-'),
+                      _buildDetailItem("Plat Nomor", data['plat'] ?? '-'),
+                      _buildDetailItem("Jam Masuk", data['waktu'] ?? data['jam_masuk'] ?? '-'),
+                      const Divider(height: 30),
+                      
+                      const Text("Keluhan / Catatan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      Text(data['keluhan'] ?? 'Tidak ada keluhan spesifik dicatat.', style: const TextStyle(fontSize: 14)),
+                      const SizedBox(height: 16),
+                      
+                      const Text("Jenis Penanganan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      Text(deskripsiServis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 16),
+
+                      const Text("Sparepart & Kebutuhan:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      if (daftarSparepart.isEmpty)
+                        const Text(
+                          "Tidak ada kebutuhan sparepart yang dicatat.", 
+                          style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.grey)
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: daftarSparepart.map((sp) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Text(
+                                  "- ${sp['nama']} (Qty: ${sp['jumlah']})",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1079,79 +1495,140 @@ class RiwayatKerjaMontirPage extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0.5,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('spk')
-            .where('montir_uid', isEqualTo: currentUid)
-            .where('status', isEqualTo: 'Selesai')
-            // Dihapus: orderBy('waktu_selesai') agar tidak error Index Firestore
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Terjadi kesalahan: ${snapshot.error}"));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text("Belum ada riwayat pekerjaan yang selesai.", style: TextStyle(color: Colors.grey)),
-            );
-          }
-
-          // Ambil datanya dan urutkan secara manual di Flutter
-          final docs = snapshot.data!.docs.toList();
-          
-          docs.sort((a, b) {
-            final dataA = a.data() as Map<String, dynamic>;
-            final dataB = b.data() as Map<String, dynamic>;
-            Timestamp? waktuA = dataA['waktu_selesai'] as Timestamp?;
-            Timestamp? waktuB = dataB['waktu_selesai'] as Timestamp?;
-            
-            if (waktuA == null || waktuB == null) return 0;
-            return waktuB.compareTo(waktuA); // Mengurutkan dari yang terbaru (Descending)
-          });
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              
-              String tanggalSelesai = "-";
-              if (data['waktu_selesai'] != null) {
-                DateTime dt = (data['waktu_selesai'] as Timestamp).toDate();
-                tanggalSelesai = "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
-              }
-
-              return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade300)
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: Colors.white,
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) {
+                setState(() {
+                  _keyword = val.trim().toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: "Cari plat nomor atau jenis kendaraan...",
+                hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, size: 20),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green.shade50,
-                    child: Icon(Icons.verified, color: Colors.green.shade600),
-                  ),
-                  title: Text(data['plat'] ?? 'Tanpa Plat', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text("Kendaraan: ${data['kendaraan'] ?? '-'}"),
-                      const SizedBox(height: 4),
-                      Text("Tgl Selesai: $tanggalSelesai", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                    ],
-                  ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
                 ),
-              );
-            },
-          );
-        },
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(color: Colors.blue.shade300),
+                ),
+                fillColor: Colors.grey.shade50,
+                filled: true,
+              ),
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('spk')
+                  .where('montir_uid', isEqualTo: currentUid)
+                  .where('status', isEqualTo: 'Selesai')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text("Terjadi kesalahan: ${snapshot.error}"));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text("Belum ada riwayat pekerjaan yang selesai.", style: TextStyle(color: Colors.grey)),
+                  );
+                }
+
+                var docs = snapshot.data!.docs.toList();
+                
+                if (_keyword.isNotEmpty) {
+                  docs = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final plat = (data['plat'] ?? '').toString().toLowerCase();
+                    final kendaraan = (data['kendaraan'] ?? '').toString().toLowerCase();
+                    final noSpk = (data['no_spk'] ?? data['noSpk'] ?? '').toString().toLowerCase();
+                    return plat.contains(_keyword) || kendaraan.contains(_keyword) || noSpk.contains(_keyword);
+                  }).toList();
+                }
+
+                docs.sort((a, b) {
+                  final dataA = a.data() as Map<String, dynamic>;
+                  final dataB = b.data() as Map<String, dynamic>;
+                  Timestamp? waktuA = dataA['waktu_selesai'] as Timestamp?;
+                  Timestamp? waktuB = dataB['waktu_selesai'] as Timestamp?;
+                  
+                  if (waktuA == null || waktuB == null) return 0;
+                  return waktuB.compareTo(waktuA);
+                });
+
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Text("Pekerjaan yang Anda cari tidak ditemukan.", style: TextStyle(color: Colors.grey)),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    
+                    String tanggalSelesai = "-";
+                    if (data['waktu_selesai'] != null) {
+                      DateTime dt = (data['waktu_selesai'] as Timestamp).toDate();
+                      tanggalSelesai = "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+                    }
+
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade300)
+                      ),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        onTap: () => _bukaDetailSPK(context, data),
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.green.shade50,
+                          child: Icon(Icons.verified, color: Colors.green.shade600),
+                        ),
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(data['plat'] ?? 'Tanpa Plat', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text("Kendaraan: ${data['kendaraan'] ?? '-'}"),
+                            const SizedBox(height: 2),
+                            Text("No. SPK: ${data['no_spk'] ?? data['noSpk'] ?? '-'}"),
+                            const SizedBox(height: 4),
+                            Text("Tgl Selesai: $tanggalSelesai", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

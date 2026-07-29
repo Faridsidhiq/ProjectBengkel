@@ -160,9 +160,11 @@ class _SpkPageState extends State<SpkPage> {
         final filteredData = semuaData.where((data) {
           final nama = (data['nama_pelanggan'] ?? '').toString().toLowerCase();
           final plat = (data['plat'] ?? '').toString().toLowerCase();
+          final noSpk = (data['no_spk'] ?? '').toString().toLowerCase();
           final id = data.id.toLowerCase();
           return nama.contains(query) ||
               plat.contains(query) ||
+              noSpk.contains(query) ||
               id.contains(query);
         }).toList();
 

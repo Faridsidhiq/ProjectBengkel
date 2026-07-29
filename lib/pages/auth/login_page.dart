@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'forgot_password_page.dart';
 import '../dashboard/dashboard_page.dart';
 
@@ -14,20 +15,27 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   Future<void> loginUser() async {
+    if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Email dan Kata Sandi tidak boleh kosong!")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      
+      // Catatan: Pengecekan peran dan navigasi sekarang ditangani 
+      // secara otomatis oleh AuthWrapper di main.dart
 
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardPage()),
-      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
@@ -60,6 +68,10 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Login gagal: $e")),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -193,8 +205,14 @@ class _LoginPageState extends State<LoginPage> {
                                 backgroundColor: Colors.blue[800],
                                 foregroundColor: Colors.white,
                               ),
-                              onPressed: loginUser,
-                              child: const Text("Masuk"),
+                              onPressed: _isLoading ? null : loginUser,
+                              child: _isLoading 
+                                  ? const SizedBox(
+                                      width: 20, 
+                                      height: 20, 
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                                    )
+                                  : const Text("Masuk"),
                             ),
                           ),
 
