@@ -574,7 +574,12 @@ class _SimulasiBiayaPageState extends State<SimulasiBiayaPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text("Subtotal Jasa", style: TextStyle(fontSize: 13, color: Colors.grey)),
-                      Text(formatRupiah.format(_totalJasa), style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                      Text(
+                        _jasaTerpilih.any((title) => _ambilHargaJasa(widget.daftarLayanan.firstWhere((e) => e["title"] == title)["harga"]) == 0)
+                            ? (_totalJasa > 0 ? "${formatRupiah.format(_totalJasa)} + Fleksibel" : "Fleksibel")
+                            : formatRupiah.format(_totalJasa),
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -593,7 +598,9 @@ class _SimulasiBiayaPageState extends State<SimulasiBiayaPage> {
                     children: [
                       const Text("Total Perkiraan Biaya", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                       Text(
-                        formatRupiah.format(_totalBiaya),
+                        _jasaTerpilih.any((title) => _ambilHargaJasa(widget.daftarLayanan.firstWhere((e) => e["title"] == title)["harga"]) == 0)
+                            ? (_totalBiaya > 0 ? "${formatRupiah.format(_totalBiaya)} + Fleksibel" : "Fleksibel")
+                            : formatRupiah.format(_totalBiaya),
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
                       ),
                     ],

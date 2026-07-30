@@ -171,8 +171,24 @@ class TrackingPelangganPage extends StatelessWidget {
                   final jenisServisStr = listServis.join(', ');
 
                   final List<dynamic> spareparts = docData['sparepart'] ?? [];
-                  final int totalHargaSparepart = docData['total_harga'] ?? 0;
-                  final int biayaJasa = docData['biaya_jasa'] ?? 0;
+                  final int totalHargaSparepart = (double.tryParse(docData['total_harga']?.toString() ?? '0') ?? 0).toInt();
+                  final int biayaJasa = (double.tryParse(docData['biaya_jasa']?.toString() ?? '0') ?? 0).toInt();
+
+                  // Hitung pembagian harga untuk jasa fleksibel
+                  int totalFixed = 0;
+                  final List<String> flexibleServices = [];
+                  for (var nama in listServis) {
+                    final int harga = _jenisServisDanHarga[nama] ?? 0;
+                    if (harga > 0) {
+                      totalFixed += harga;
+                    } else {
+                      flexibleServices.add(nama);
+                    }
+                  }
+                  final int remainingCost = biayaJasa - totalFixed;
+                  final int hargaPerFlexible = (flexibleServices.isNotEmpty && remainingCost > 0)
+                      ? remainingCost ~/ flexibleServices.length
+                      : 0;
 
                   // Persiapkan data checklist pekerjaan
                   List<Map<String, dynamic>> listPekerjaan = [];
@@ -230,7 +246,7 @@ class TrackingPelangganPage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildJasaServisCostCard(listServis, biayaJasa),
+                            _buildJasaServisCostCard(listServis, biayaJasa, hargaPerFlexible),
                             const SizedBox(height: 14),
                             _buildSparepartsCard(spareparts),
                             const SizedBox(height: 14),
@@ -545,7 +561,7 @@ class TrackingPelangganPage extends StatelessWidget {
     );
   }
 
-  Widget _buildJasaServisCostCard(List<String> listServis, int biayaJasa) {
+  Widget _buildJasaServisCostCard(List<String> listServis, int biayaJasa, int hargaPerFlexible) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -573,7 +589,21 @@ class TrackingPelangganPage extends StatelessWidget {
           else
             ...listServis.map((namaServis) {
               final int hargaLookup = _jenisServisDanHarga[namaServis] ?? 0;
-              final String hargaText = hargaLookup > 0 ? _formatRupiah(hargaLookup) : "Fleksibel";
+              final bool isFlexible = hargaLookup == 0;
+              
+              int hargaTampil = 0;
+              String hargaText = "Fleksibel";
+              Color warnaHarga = Colors.orange.shade800;
+
+              if (!isFlexible) {
+                hargaTampil = hargaLookup;
+                hargaText = _formatRupiah(hargaTampil);
+                warnaHarga = Colors.black87;
+              } else if (hargaPerFlexible > 0) {
+                hargaTampil = hargaPerFlexible;
+                hargaText = _formatRupiah(hargaTampil);
+                warnaHarga = Colors.black87;
+              }
               
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
@@ -591,7 +621,7 @@ class TrackingPelangganPage extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.bold, 
                         fontSize: 13,
-                        color: hargaLookup > 0 ? Colors.black87 : Colors.orange.shade800,
+                        color: warnaHarga,
                       ),
                     ),
                   ],
@@ -607,7 +637,7 @@ class TrackingPelangganPage extends StatelessWidget {
                 style: TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.bold),
               ),
               Text(
-                _formatRupiah(biayaJasa),
+                biayaJasa > 0 ? _formatRupiah(biayaJasa) : "Fleksibel",
                 style: const TextStyle(
                   color: Colors.blue, 
                   fontSize: 14, 
