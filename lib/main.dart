@@ -1,15 +1,14 @@
-import 'package:flutter/foundation.dart'; // Tambahan: Wajib untuk mendeteksi kIsWeb
+import 'package:flutter/foundation.dart'; // Wajib untuk mendeteksi kIsWeb
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
-import 'pages/auth/login_page.dart'; // Ini halaman login Web
-import 'pages/dashboard/dashboard_page.dart'; // Ini halaman dashboard Web
-import 'pages/mobile/login_mobile_page.dart'; // Ini halaman login Mobile
-import 'pages/mobile/dashboard_mobile_page.dart'; // Dashboard pelanggan Mobile
-import 'pages/mobile/dashboard_montir_page.dart'; // Dashboard montir Mobile
-
+import 'pages/auth/login_page.dart';
+import 'pages/dashboard/dashboard_page.dart';
+import 'pages/mobile/login_mobile_page.dart';
+import 'pages/mobile/dashboard_mobile_page.dart';
+import 'pages/mobile/dashboard_montir_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -45,7 +44,7 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Tampilkan loading saat mengecek status auth
+        // Tampilkan indikator loading saat Firebase sedang memverifikasi sesi login
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
@@ -54,76 +53,130 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        final user = snapshot.data;
-        if (user == null) {
-          return kIsWeb ? const LoginPage() : const LoginMobilePage();
+        // Jika pengguna sudah terautentikasi (sesi tersimpan)
+        if (snapshot.hasData && snapshot.data != null) {
+          return RoleCheckWidget(user: snapshot.data!);
         }
 
-        // Jika Web, langsung ke DashboardPage (Admin)
-        if (kIsWeb) {
-          return const DashboardPage();
-        }
-
-        // Jika Mobile, harus cek role di Firestore (pelanggan vs montir)
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance.collection('pelanggan').doc(user.uid).get(),
-          builder: (context, pelangganSnapshot) {
-            if (pelangganSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
-
-            if (pelangganSnapshot.hasData && pelangganSnapshot.data!.exists) {
-              final role = pelangganSnapshot.data!.get('role')?.toString().toLowerCase() ?? '';
-              if (role == 'pelanggan') {
-                return const DashboardMobilePage();
-              }
-            }
-
-            // Jika tidak ada di pelanggan, cek di manajemen_akun (montir/admin)
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('manajemen_akun').doc(user.uid).get(),
-              builder: (context, montirSnapshot) {
-                if (montirSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                if (montirSnapshot.hasData && montirSnapshot.data!.exists) {
-                  final role = montirSnapshot.data!.get('role')?.toString().toLowerCase() ?? '';
-                  if (role == 'montir') {
-                    return const DashboardMontirPage();
-                  } else if (role == 'admin') {
-                    // Admin disuruh ke Web, jadi force logout di mobile
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      FirebaseAuth.instance.signOut();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Akun Admin silakan gunakan sistem Web!"),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    });
-                    return const LoginMobilePage();
-                  }
-                }
-
-                // Jika data tidak ditemukan di mana pun, force logout
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  FirebaseAuth.instance.signOut();
-                });
-                return const LoginMobilePage();
-              },
-            );
-          },
-        );
+        // Jika belum login / sudah logout
+        return kIsWeb 
+            ? const LoginPage() 
+            : const LoginMobilePage();
       },
     );
+  }
+}
+
+class RoleCheckWidget extends StatefulWidget {
+  final User user;
+  const RoleCheckWidget({super.key, required this.user});
+
+  @override
+  State<RoleCheckWidget> createState() => _RoleCheckWidgetState();
+}
+
+class _RoleCheckWidgetState extends State<RoleCheckWidget> {
+  bool _isLoading = true;
+  Widget? _page;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    try {
+      // 1. Cek di koleksi manajemen_akun (Admin & Montir)
+      DocumentSnapshot akunDoc = await FirebaseFirestore.instance
+          .collection('manajemen_akun')
+          .doc(widget.user.uid)
+          .get();
+          
+      if (akunDoc.exists) {
+        final data = akunDoc.data() as Map?;
+        final role = data?['role']?.toString().toLowerCase().trim() ?? '';
+        
+        if (kIsWeb) {
+          if (role == 'admin') {
+            if (mounted) setState(() { _isLoading = false; _page = const DashboardPage(); });
+            return;
+          } else if (role == 'montir') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Akses Ditolak: Akun Montir silakan gunakan aplikasi Mobile!"), backgroundColor: Colors.orange),
+              );
+            }
+            await FirebaseAuth.instance.signOut();
+            return;
+          }
+        } else {
+          if (role == 'montir') {
+            if (mounted) setState(() { _isLoading = false; _page = const DashboardMontirPage(); });
+            return;
+          } else if (role == 'admin') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Akses Ditolak: Akun Admin silakan gunakan sistem Web!"), backgroundColor: Colors.orange),
+              );
+            }
+            await FirebaseAuth.instance.signOut();
+            return;
+          }
+        }
+      }
+
+      // 2. Cek di koleksi pelanggan
+      DocumentSnapshot pelangganDoc = await FirebaseFirestore.instance
+          .collection('pelanggan')
+          .doc(widget.user.uid)
+          .get();
+          
+      if (pelangganDoc.exists) {
+        final data = pelangganDoc.data() as Map?;
+        final role = data?['role']?.toString().toLowerCase().trim() ?? '';
+        
+        if (kIsWeb) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Akses Ditolak: Akun Pelanggan silakan gunakan aplikasi Mobile!"), backgroundColor: Colors.orange),
+            );
+          }
+          await FirebaseAuth.instance.signOut();
+          return;
+        } else {
+          if (role == 'pelanggan') {
+            if (mounted) setState(() { _isLoading = false; _page = const DashboardMobilePage(); });
+            return;
+          }
+        }
+      }
+
+      // 3. Jika peran tidak terdaftar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Akses Ditolak: Peran akun tidak dikenali di sistem!"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error Sistem: $e"), backgroundColor: Colors.red),
+        );
+      }
+      await FirebaseAuth.instance.signOut();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return _page ?? const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

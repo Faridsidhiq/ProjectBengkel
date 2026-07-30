@@ -119,15 +119,13 @@ class _DetailKeluhanPageState
             const SizedBox(height: 20),
 
             Expanded(
-              child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-
-                  // KIRI
-
-                  Expanded(
-                    child: buildCard(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    // ATAS (Pesan Pelanggan)
+                    buildCard(
                       title: "PESAN PELANGGAN",
                       icon: Icons.message,
                       child: Column(
@@ -135,7 +133,6 @@ class _DetailKeluhanPageState
                             CrossAxisAlignment
                                 .start,
                         children: [
-
                           Container(
                             padding:
                                 const EdgeInsets.all(
@@ -189,10 +186,8 @@ class _DetailKeluhanPageState
                               ],
                             ),
                           ),
-
                           const SizedBox(
                               height: 20),
-
                           const Text(
                             "Judul Keluhan",
                             style: TextStyle(
@@ -200,17 +195,13 @@ class _DetailKeluhanPageState
                                   FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(
                               height: 5),
-
                           Text(
                             data["judul"] ?? "",
                           ),
-
                           const SizedBox(
                               height: 20),
-
                           const Text(
                             "Isi Keluhan",
                             style: TextStyle(
@@ -218,10 +209,8 @@ class _DetailKeluhanPageState
                                   FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(
                               height: 5),
-
                           Container(
                             width: double.infinity,
                             padding:
@@ -243,14 +232,9 @@ class _DetailKeluhanPageState
                         ],
                       ),
                     ),
-                  ),
-
-                  const SizedBox(width: 20),
-
-                  // KANAN
-
-                  Expanded(
-                    child: buildCard(
+                    const SizedBox(height: 20),
+                    // BAWAH (Update Status)
+                    buildCard(
                       title:
                           "UPDATE STATUS KELUHAN",
                       icon:
@@ -260,10 +244,9 @@ class _DetailKeluhanPageState
                             CrossAxisAlignment
                                 .start,
                         children: [
-
                           DropdownButtonFormField<String>(
-                              initialValue: selectedStatus,
-                              items: const [
+                            initialValue: selectedStatus,
+                            items: const [
                               DropdownMenuItem(
                                 value:
                                     "Menunggu",
@@ -295,10 +278,8 @@ class _DetailKeluhanPageState
                                   OutlineInputBorder(),
                             ),
                           ),
-
                           const SizedBox(
                               height: 15),
-
                           TextField(
                             controller:
                                 tanggapanController,
@@ -311,10 +292,8 @@ class _DetailKeluhanPageState
                                   OutlineInputBorder(),
                             ),
                           ),
-
                           const SizedBox(
                               height: 15),
-
                           SizedBox(
                             width:
                                 double.infinity,
@@ -347,8 +326,8 @@ class _DetailKeluhanPageState
                         ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             )
           ],
@@ -385,11 +364,14 @@ class _DetailKeluhanPageState
               Icon(icon,
                   color: Colors.blue),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight:
-                      FontWeight.bold,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

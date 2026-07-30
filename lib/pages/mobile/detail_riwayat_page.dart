@@ -92,26 +92,44 @@ class DetailRiwayatPage extends StatelessWidget {
     final int totalHargaSparepart = (double.tryParse(data['total_harga']?.toString() ?? '0') ?? 0).toInt();
     final int biayaJasa = (double.tryParse(data['biaya_jasa']?.toString() ?? '0') ?? 0).toInt();
 
-    // Hitung pembagian harga untuk jasa fleksibel
+    // Hitung pembagian harga untuk jasa fleksibel secara dinamis
+    final Map<String, int> resolvedPrices = {};
     int totalFixed = 0;
-    final List<String> flexibleServices = [];
-    for (var nama in listServis) {
-      final int harga = _jenisServisDanHarga[nama] ?? 0;
-      if (harga > 0) {
-        totalFixed += harga;
-      } else {
-        flexibleServices.add(nama);
-      }
-    }
-    final int remainingCost = biayaJasa - totalFixed;
-    final int hargaPerFlexible = (flexibleServices.isNotEmpty && remainingCost > 0)
-        ? remainingCost ~/ flexibleServices.length
-        : 0;
+    final List<String> flexibleServicesWithoutExplicitPrice = [];
 
     // Persiapkan data checklist pekerjaan
     List<Map<String, dynamic>> listPekerjaan = [];
     if (data['items'] != null) {
       listPekerjaan = List<Map<String, dynamic>>.from(data['items']);
+    }
+
+    for (var nama in listServis) {
+      // Cek apakah ada harga manual di dalam items SPK untuk servis ini
+      final itemPek = listPekerjaan.firstWhere(
+        (el) => el['nama'] == nama,
+        orElse: () => <String, dynamic>{},
+      );
+      if (itemPek['harga'] != null) {
+        final hargaManual = (double.tryParse(itemPek['harga'].toString()) ?? 0).toInt();
+        resolvedPrices[nama] = hargaManual;
+        totalFixed += hargaManual;
+      } else {
+        final int hargaLookup = _jenisServisDanHarga[nama] ?? 0;
+        if (hargaLookup > 0) {
+          resolvedPrices[nama] = hargaLookup;
+          totalFixed += hargaLookup;
+        } else {
+          flexibleServicesWithoutExplicitPrice.add(nama);
+        }
+      }
+    }
+
+    final int remainingCost = biayaJasa - totalFixed;
+    if (flexibleServicesWithoutExplicitPrice.isNotEmpty && remainingCost > 0) {
+      final int hargaPerFlexible = remainingCost ~/ flexibleServicesWithoutExplicitPrice.length;
+      for (var nama in flexibleServicesWithoutExplicitPrice) {
+        resolvedPrices[nama] = hargaPerFlexible;
+      }
     }
 
     // Kalkulasi progress
@@ -190,7 +208,7 @@ class DetailRiwayatPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildJasaServisCostCard(listServis, biayaJasa, hargaPerFlexible),
+                  _buildJasaServisCostCard(listServis, biayaJasa, resolvedPrices),
                   const SizedBox(height: 14),
                   _buildSparepartsCard(spareparts),
                   const SizedBox(height: 14),
@@ -489,7 +507,7 @@ class DetailRiwayatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildJasaServisCostCard(List<String> listServis, int biayaJasa, int hargaPerFlexible) {
+  Widget _buildJasaServisCostCard(List<String> listServis, int biayaJasa, Map<String, int> resolvedPrices) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -518,19 +536,23 @@ class DetailRiwayatPage extends StatelessWidget {
             ...listServis.map((namaServis) {
               final int hargaLookup = _jenisServisDanHarga[namaServis] ?? 0;
               final bool isFlexible = hargaLookup == 0;
+              final int? hargaTampil = resolvedPrices[namaServis];
               
-              int hargaTampil = 0;
-              String hargaText = "Fleksibel";
-              Color warnaHarga = Colors.orange.shade800;
+              String hargaText;
+              Color warnaHarga;
 
-              if (!isFlexible) {
-                hargaTampil = hargaLookup;
+              if (hargaTampil != null) {
                 hargaText = _formatRupiah(hargaTampil);
-                warnaHarga = Colors.black87;
-              } else if (hargaPerFlexible > 0) {
-                hargaTampil = hargaPerFlexible;
-                hargaText = _formatRupiah(hargaTampil);
-                warnaHarga = Colors.black87;
+                warnaHarga = (hargaTampil > 0 || !isFlexible) ? Colors.black87 : Colors.orange.shade800;
+              } else {
+                final int baseHarga = _jenisServisDanHarga[namaServis] ?? 0;
+                if (baseHarga > 0) {
+                  hargaText = _formatRupiah(baseHarga);
+                  warnaHarga = Colors.black87;
+                } else {
+                  hargaText = "Fleksibel";
+                  warnaHarga = Colors.orange.shade800;
+                }
               }
               
               return Padding(

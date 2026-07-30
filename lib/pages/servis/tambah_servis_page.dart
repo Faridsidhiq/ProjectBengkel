@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class TambahServisPage extends StatefulWidget {
   final VoidCallback onBack;
@@ -19,11 +20,33 @@ class _TambahServisPageState extends State<TambahServisPage> {
   String metodePembayaran = "Cash";
   bool isSaving = false;
 
-  // ================= KALKULASI BIAYA =================
+  // ================= HARGA DEFAULT JENIS SERVIS =================
+  static const Map<String, double> _hargaServisDefault = {
+    "Tune Up & Scanning System": 200000,
+    "Ganti Oli & Filter Oli": 60000,
+    "Service Rem / Brake 4 Roda": 200000,
+    "Service Kaki-Kaki": 0,
+    "Electrical System": 0,
+    "Service Kopling / Clutch System": 450000,
+    "Ganti Timing Belt": 300000,
+    "Overhaul Mesin": 2500000,
+    "Overhaul Manual Transmisi": 1500000,
+    "Overhaul Gardan": 750000,
+    "Overhaul Automatic Transmisi": 2500000,
+  };
+
+  // ================= KALKULASI BIAYA (TANPA PPN) =================
   double get biayaJasa => (widget.spkData['biaya_jasa'] ?? 0).toDouble();
   double get subtotalSparepart => (widget.spkData['total_harga'] ?? 0).toDouble();
-  double get pajak => 0.11 * (biayaJasa + subtotalSparepart);
-  double get totalAkhir => biayaJasa + subtotalSparepart + pajak;
+  double get totalAkhir => biayaJasa + subtotalSparepart;
+
+  List<dynamic> get jenisServisList =>
+      (widget.spkData['jenis_servis'] as List?) ?? [];
+
+  String _formatRupiah(num value) {
+    final formatter = NumberFormat('#,##0', 'id_ID');
+    return 'Rp ${formatter.format(value)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,38 +54,64 @@ class _TambahServisPageState extends State<TambahServisPage> {
       color: Colors.grey.shade100,
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ================= LEFT =================
-            Expanded(
-              flex: 3,
-              child: SingleChildScrollView(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool isNarrow = constraints.maxWidth < 900;
+
+            if (isNarrow) {
+              return SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    cardSPK(),
+                    _buildKolomKiriContent(),
                     const SizedBox(height: 15),
-                    cardSparepart(),
-                    const SizedBox(height: 15),
-                    cardRincian(),
-                    const SizedBox(height: 15),
-                    cardPembayaran(),
-                    const SizedBox(height: 80),
+                    summaryCard(),
+                    const SizedBox(height: 20),
                   ],
                 ),
-              ),
-            ),
+              );
+            }
 
-            const SizedBox(width: 20),
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ================= LEFT =================
+                Expanded(
+                  flex: 3,
+                  child: SingleChildScrollView(
+                    child: _buildKolomKiriContent(),
+                  ),
+                ),
 
-            // ================= RIGHT =================
-            Expanded(
-              flex: 1,
-              child: summaryCard(),
-            ),
-          ],
+                const SizedBox(width: 20),
+
+                // ================= RIGHT =================
+                Expanded(
+                  flex: 1,
+                  child: summaryCard(),
+                ),
+              ],
+            );
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildKolomKiriContent() {
+    return Column(
+      children: [
+        cardSPK(),
+        const SizedBox(height: 15),
+        cardJenisServis(),
+        const SizedBox(height: 15),
+        cardSparepart(),
+        const SizedBox(height: 15),
+        cardRincian(),
+        const SizedBox(height: 15),
+        cardPembayaran(),
+        const SizedBox(height: 80),
+      ],
     );
   }
 
@@ -72,15 +121,15 @@ class _TambahServisPageState extends State<TambahServisPage> {
       "Data SPK",
       Column(
         children: [
-          SizedBox(
-            width: double.infinity,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: DataTable(
               border: TableBorder.all(color: Colors.grey.shade300),
               columns: const [
                 DataColumn(label: Text("Nomor SPK")),
                 DataColumn(label: Text("Nama Pelanggan")),
                 DataColumn(label: Text("Kendaraan")),
-                DataColumn(label: Text("Total Harga")),
+                DataColumn(label: Text("Total Sparepart")),
               ],
               rows: [
                 DataRow(
@@ -93,7 +142,7 @@ class _TambahServisPageState extends State<TambahServisPage> {
                     ),
                     DataCell(Text(widget.spkData['nama_pelanggan'] ?? '-')),
                     DataCell(Text(widget.spkData['kendaraan'] ?? '-')),
-                    DataCell(Text("Rp ${widget.spkData['total_harga'] ?? 0}")),
+                    DataCell(Text(_formatRupiah(widget.spkData['total_harga'] ?? 0))),
                   ],
                 ),
               ],
@@ -104,36 +153,86 @@ class _TambahServisPageState extends State<TambahServisPage> {
     );
   }
 
-  // ================= CARD SPAREPART =================
-  Widget cardSparepart() {
+  // ================= CARD JENIS SERVIS (DIJABARKAN) =================
+  Widget cardJenisServis() {
+    final List<dynamic> items = jenisServisList;
+
+    if (items.isEmpty) {
+      return card(
+        "Daftar Jenis Servis / Jasa",
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text("Tidak ada jenis servis yang dipilih.",
+              style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
     return card(
-      "Daftar Sparepart",
+      "Daftar Jenis Servis / Jasa",
       Column(
         children: [
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: DataTable(
-              border: TableBorder.all(color: Colors.grey.shade300),
-              columns: const [
-                DataColumn(label: Text("Nama")),
-                DataColumn(label: Text("Kode")),
-                DataColumn(label: Text("Jumlah")),
-                DataColumn(label: Text("Harga")),
-                DataColumn(label: Text("Total")),
-              ],
-              rows: (widget.spkData['sparepart'] as List? ?? [])
-                  .map<DataRow>((item) {
-                return DataRow(
-                  cells: [
-                    DataCell(Text(item['nama'] ?? '-')),
-                    DataCell(Text(item['kode'] ?? '-')),
-                    DataCell(Text("${item['jumlah'] ?? 0}")),
-                    DataCell(Text("Rp ${item['harga_jual_saat_itu'] ?? 0}")),
-                    DataCell(Text("Rp ${item['subtotal'] ?? 0}")),
+          const SizedBox(height: 8),
+          LayoutBuilder(builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  border: TableBorder.all(color: Colors.grey.shade300),
+                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+                  columns: const [
+                    DataColumn(label: Text("No.")),
+                    DataColumn(label: Text("Jenis Pekerjaan / Jasa Servis")),
+                    DataColumn(label: Text("Biaya Jasa")),
                   ],
-                );
-              }).toList(),
+                  rows: List.generate(items.length, (i) {
+                    final nama = items[i].toString();
+                    
+                    // Cek apakah ada data di widget.spkData['items']
+                    final List<dynamic> spkItemsArray = (widget.spkData['items'] as List?) ?? [];
+                    int hargaItem = 0;
+                    bool itemDitemukan = false;
+                    
+                    try {
+                      final mapItem = spkItemsArray.firstWhere(
+                        (element) => (element as Map)['nama'] == nama, 
+                        orElse: () => null
+                      );
+                      if (mapItem != null) {
+                        hargaItem = (mapItem['harga'] ?? 0) as int;
+                        itemDitemukan = true;
+                      }
+                    } catch(e) {
+                      // Ignore
+                    }
+
+                    final hargaDefault = _hargaServisDefault[nama] ?? 0;
+                    
+                    // Jika ditemukan di items (terutama yg fleksibel dan harganya diset di SPK), pakai itu.
+                    final hargaFinal = itemDitemukan ? hargaItem : hargaDefault;
+
+                    return DataRow(cells: [
+                      DataCell(Text("${i + 1}")),
+                      DataCell(Text(nama)),
+                      DataCell(Text(
+                        (hargaDefault == 0 && hargaFinal == 0) ? "Sesuai Kesepakatan" : _formatRupiah(hargaFinal),
+                        style: TextStyle(
+                          color: (hargaDefault == 0 && hargaFinal == 0) ? Colors.orange : Colors.black,
+                        ),
+                      )),
+                    ]);
+                  }),
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              "Total Biaya Jasa: ${_formatRupiah(biayaJasa)}",
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -141,15 +240,73 @@ class _TambahServisPageState extends State<TambahServisPage> {
     );
   }
 
-  // ================= CARD RINCIAN =================
+  // ================= CARD SPAREPART =================
+  Widget cardSparepart() {
+    final List<dynamic> sparepartList =
+        (widget.spkData['sparepart'] as List?) ?? [];
+
+    if (sparepartList.isEmpty) {
+      return card(
+        "Daftar Sparepart",
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text("Tidak ada sparepart yang digunakan.",
+              style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    return card(
+      "Daftar Sparepart",
+      Column(
+        children: [
+          const SizedBox(height: 10),
+          LayoutBuilder(builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  border: TableBorder.all(color: Colors.grey.shade300),
+                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+                  columns: const [
+                    DataColumn(label: Text("No.")),
+                    DataColumn(label: Text("Nama")),
+                    DataColumn(label: Text("Kode")),
+                    DataColumn(label: Text("Jumlah")),
+                    DataColumn(label: Text("Harga")),
+                    DataColumn(label: Text("Total")),
+                  ],
+                  rows: List.generate(sparepartList.length, (i) {
+                    final item = sparepartList[i];
+                    return DataRow(cells: [
+                      DataCell(Text("${i + 1}")),
+                      DataCell(Text(item['nama'] ?? '-')),
+                      DataCell(Text(item['kode'] ?? '-')),
+                      DataCell(Text("${item['jumlah'] ?? 0}")),
+                      DataCell(Text(_formatRupiah(item['harga_jual_saat_itu'] ?? 0))),
+                      DataCell(Text(_formatRupiah(item['subtotal'] ?? 0))),
+                    ]);
+                  }),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ================= CARD RINCIAN (TANPA PPN) =================
   Widget cardRincian() {
     return card(
       "Rincian Biaya Akhir",
       Column(
         children: [
-          rowText("Biaya Jasa Servis", "Rp ${biayaJasa.toStringAsFixed(0)}"),
-          rowText("Total Biaya Sparepart", "Rp ${subtotalSparepart.toStringAsFixed(0)}"),
-          rowText("Pajak (PPN 11%)", "Rp ${pajak.toStringAsFixed(0)}"),
+          rowText("Subtotal Jasa Servis", _formatRupiah(biayaJasa)),
+          rowText("Subtotal Sparepart", _formatRupiah(subtotalSparepart)),
+          const Divider(),
+          rowText("TOTAL BIAYA AKHIR", _formatRupiah(totalAkhir), bold: true),
         ],
       ),
     );
@@ -204,7 +361,7 @@ class _TambahServisPageState extends State<TambahServisPage> {
     );
   }
 
-  // ================= SUMMARY =================
+  // ================= SUMMARY CARD (TANPA PPN) =================
   Widget summaryCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -218,7 +375,6 @@ class _TambahServisPageState extends State<TambahServisPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -232,17 +388,17 @@ class _TambahServisPageState extends State<TambahServisPage> {
             ),
           ),
 
-          rowText("Subtotal Jasa", "Rp ${biayaJasa.toStringAsFixed(0)}"),
-          rowText("Subtotal Sparepart", "Rp ${subtotalSparepart.toStringAsFixed(0)}"),
-          rowText("Pajak (PPN 11%)", "Rp ${pajak.toStringAsFixed(0)}"),
+          rowText("Subtotal Jasa", _formatRupiah(biayaJasa)),
+          rowText("Subtotal Sparepart", _formatRupiah(subtotalSparepart)),
 
           const Divider(),
 
-          const Text("TOTAL BIAYA AKHIR"),
+          const Text("TOTAL BIAYA AKHIR",
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 5),
 
           Text(
-            "Rp ${totalAkhir.toStringAsFixed(0)}",
+            _formatRupiah(totalAkhir),
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
 
@@ -279,15 +435,12 @@ class _TambahServisPageState extends State<TambahServisPage> {
             onPressed: widget.onBack,
             child: const Text("Batal Transaksi"),
           ),
-
-          // 🔥 TOMBOL CETAK INVOICE DIHAPUS DARI SINI
-          // sudah ada di DetailServisPage
         ],
       ),
     );
   }
 
-  // ================= SIMPAN INVOICE =================
+  // ================= SIMPAN INVOICE (TANPA PPN, SERTAKAN JENIS SERVIS) =================
   Future<void> _simpanInvoice() async {
     setState(() => isSaving = true);
 
@@ -311,13 +464,13 @@ class _TambahServisPageState extends State<TambahServisPage> {
         'kendaraan': widget.spkData['kendaraan'],
         'plat': widget.spkData['plat'],
         'sparepart': widget.spkData['sparepart'] ?? [],
+        'jenis_servis': widget.spkData['jenis_servis'] ?? [],
+        'items': widget.spkData['items'] ?? [], // Save the flexible items data
         'biaya_jasa': biayaJasa,
         'total_harga': subtotalSparepart,
-        'pajak': pajak,
+        'pajak': 0,
         'total_akhir': totalAkhir,
         'metode_pembayaran': metodePembayaran,
-        // 🔥 FIX: invoice baru dibuat setelah pembayaran dipilih & disimpan,
-        // jadi statusnya harus langsung "Lunas", bukan "Belum Bayar".
         'status': 'Lunas',
         'created_at': Timestamp.now(),
       });
@@ -337,7 +490,7 @@ class _TambahServisPageState extends State<TambahServisPage> {
     }
   }
 
-  // ================= COMPONENT =================
+  // ================= COMPONENT HELPERS =================
 
   Widget card(String title, Widget child) {
     return Container(
@@ -359,40 +512,18 @@ class _TambahServisPageState extends State<TambahServisPage> {
     );
   }
 
-  Widget input(String hint) {
-    return TextField(
-      decoration: InputDecoration(
-        hintText: hint,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  Widget rowText(String title, String value) {
+  Widget rowText(String title, String value, {bool bold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget paymentCard(String title, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 30),
-          const SizedBox(height: 10),
-          Text(title),
+          Text(title,
+              style: TextStyle(
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );

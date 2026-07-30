@@ -103,14 +103,30 @@ class DetailServisPage extends StatelessWidget {
     );
   }
 
+  // ================= HARGA DEFAULT JENIS SERVIS =================
+  static const Map<String, double> _hargaServisDefault = {
+    "Tune Up & Scanning System": 200000,
+    "Ganti Oli & Filter Oli": 60000,
+    "Service Rem / Brake 4 Roda": 200000,
+    "Service Kaki-Kaki": 0,
+    "Electrical System": 0,
+    "Service Kopling / Clutch System": 450000,
+    "Ganti Timing Belt": 300000,
+    "Overhaul Mesin": 2500000,
+    "Overhaul Manual Transmisi": 1500000,
+    "Overhaul Gardan": 750000,
+    "Overhaul Automatic Transmisi": 2500000,
+  };
+
   // ================= GENERATE PDF =================
   Future<Uint8List> _buildInvoicePdf({
     required String noInvoice,
     required Map<String, dynamic> data,
     required List sparepart,
+    required List jenisServis,
+    required List itemsData,
     required double biayaJasa,
     required double subtotalSparepart,
-    required double pajak,
     required double totalAkhir,
   }) async {
     final pdfDoc = pw.Document();
@@ -192,23 +208,38 @@ class DetailServisPage extends StatelessWidget {
 
                 pw.SizedBox(height: 24),
 
-                // ===== TABEL SPAREPART =====
+                // ===== TABEL JENIS SERVIS =====
+                pw.Text("Rincian Pekerjaan / Jasa Servis",
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                pw.SizedBox(height: 6),
                 pw.Table.fromTextArray(
-                  headers: [
-                    "No.",
-                    "Deskripsi Sparepart",
-                    "Jumlah",
-                    "Harga Satuan",
-                    "Subtotal"
-                  ],
-                  data: List.generate(sparepart.length, (i) {
-                    final item = sparepart[i];
+                  headers: ["No.", "Jenis Pekerjaan / Jasa Servis", "Biaya Jasa"],
+                  data: List.generate(jenisServis.length, (i) {
+                    final nama = jenisServis[i].toString();
+
+                    int hargaItem = 0;
+                    bool itemDitemukan = false;
+                    try {
+                      final mapItem = itemsData.firstWhere(
+                        (element) => (element as Map)['nama'] == nama, 
+                        orElse: () => null
+                      );
+                      if (mapItem != null) {
+                        hargaItem = (mapItem['harga'] ?? 0) as int;
+                        itemDitemukan = true;
+                      }
+                    } catch(e) {
+                      // Ignore
+                    }
+
+                    final hargaDefault = _hargaServisDefault[nama] ?? 0;
+                    final harga = itemDitemukan ? hargaItem : hargaDefault;
+                    
                     return [
                       (i + 1).toString().padLeft(2, '0'),
-                      "${item['nama'] ?? '-'}",
-                      "${item['jumlah'] ?? 0}",
-                      _rp(item['harga_jual_saat_itu'] ?? 0),
-                      _rp(item['subtotal'] ?? 0),
+                      nama,
+                      (hargaDefault == 0 && harga == 0) ? "Sesuai Kesepakatan" : _rp(harga),
                     ];
                   }),
                   headerStyle: pw.TextStyle(
@@ -221,21 +252,70 @@ class DetailServisPage extends StatelessWidget {
                   cellAlignments: {
                     0: pw.Alignment.center,
                     1: pw.Alignment.centerLeft,
-                    2: pw.Alignment.center,
-                    3: pw.Alignment.centerRight,
-                    4: pw.Alignment.centerRight,
+                    2: pw.Alignment.centerRight,
                   },
                   columnWidths: {
                     0: const pw.FixedColumnWidth(28),
                     1: const pw.FlexColumnWidth(3),
-                    2: const pw.FixedColumnWidth(45),
-                    3: const pw.FlexColumnWidth(1.4),
-                    4: const pw.FlexColumnWidth(1.4),
+                    2: const pw.FlexColumnWidth(1.5),
                   },
                   border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
                   cellPadding:
                       const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 6),
                 ),
+
+                pw.SizedBox(height: 14),
+
+                // ===== TABEL SPAREPART =====
+                if (sparepart.isNotEmpty) ...[
+                  pw.Text("Rincian Sparepart",
+                      style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                  pw.SizedBox(height: 6),
+                  pw.Table.fromTextArray(
+                    headers: [
+                      "No.",
+                      "Deskripsi Sparepart",
+                      "Jumlah",
+                      "Harga Satuan",
+                      "Subtotal"
+                    ],
+                    data: List.generate(sparepart.length, (i) {
+                      final item = sparepart[i];
+                      return [
+                        (i + 1).toString().padLeft(2, '0'),
+                        "${item['nama'] ?? '-'}",
+                        "${item['jumlah'] ?? 0}",
+                        _rp(item['harga_jual_saat_itu'] ?? 0),
+                        _rp(item['subtotal'] ?? 0),
+                      ];
+                    }),
+                    headerStyle: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
+                        fontSize: 9),
+                    headerDecoration:
+                        const pw.BoxDecoration(color: PdfColors.blue700),
+                    cellStyle: const pw.TextStyle(fontSize: 9),
+                    cellAlignments: {
+                      0: pw.Alignment.center,
+                      1: pw.Alignment.centerLeft,
+                      2: pw.Alignment.center,
+                      3: pw.Alignment.centerRight,
+                      4: pw.Alignment.centerRight,
+                    },
+                    columnWidths: {
+                      0: const pw.FixedColumnWidth(28),
+                      1: const pw.FlexColumnWidth(3),
+                      2: const pw.FixedColumnWidth(45),
+                      3: const pw.FlexColumnWidth(1.4),
+                      4: const pw.FlexColumnWidth(1.4),
+                    },
+                    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                    cellPadding:
+                        const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+                  ),
+                ],
 
                 pw.SizedBox(height: 16),
 
@@ -246,9 +326,8 @@ class DetailServisPage extends StatelessWidget {
                     width: 230,
                     child: pw.Column(
                       children: [
+                        _pdfTotalRow("Subtotal Jasa Servis", _rp(biayaJasa)),
                         _pdfTotalRow("Subtotal Sparepart", _rp(subtotalSparepart)),
-                        _pdfTotalRow("Harga Jasa Servis", _rp(biayaJasa)),
-                        _pdfTotalRow("Pajak (PPN 11%)", _rp(pajak)),
                         pw.Divider(),
                         _pdfTotalRow("Total Akhir Dibayarkan", _rp(totalAkhir), bold: true),
                         pw.SizedBox(height: 6),
@@ -314,10 +393,14 @@ class DetailServisPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ===== HELPER RESPONSIF (TIDAK MENGUBAH LOGIC LAIN) =====
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 700;
+
     return Material(
       color: const Color(0xfff5f7fb),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isMobile ? 12 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -325,9 +408,9 @@ class DetailServisPage extends StatelessWidget {
               children: [
                 IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back)),
                 const SizedBox(width: 10),
-                const Text("Pencatatan Data Servis",
+                Text("Pencatatan Data Servis",
                     style:
-                        TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        TextStyle(fontSize: isMobile ? 18 : 22, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 20),
@@ -353,13 +436,14 @@ class DetailServisPage extends StatelessWidget {
                   final String noInvoice = _formatNoInvoice(data, doc.id);
 
                   final List sparepart = data['sparepart'] ?? [];
+                  final List jenisServis = data['jenis_servis'] ?? [];
+                  final List itemsData = data['items'] ?? [];
                   final double biayaJasa =
                       (data['biaya_jasa'] ?? 0).toDouble();
                   final double subtotalSparepart =
                       (data['total_harga'] ?? 0).toDouble();
-                  final double pajak = (data['pajak'] ?? 0).toDouble();
                   final double totalAkhir =
-                      (data['total_akhir'] ?? 0).toDouble();
+                      biayaJasa + subtotalSparepart;
 
                   // Cek apakah metode pembayaran transfer
                   final bool isTransfer =
@@ -368,196 +452,418 @@ class DetailServisPage extends StatelessWidget {
 
                   return Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            noInvoice,
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey),
-                          ),
-                          Row(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: () async {
-                                  final bytes = await _buildInvoicePdf(
-                                    noInvoice: noInvoice,
-                                    data: data,
-                                    sparepart: sparepart,
-                                    biayaJasa: biayaJasa,
-                                    subtotalSparepart: subtotalSparepart,
-                                    pajak: pajak,
-                                    totalAkhir: totalAkhir,
-                                  );
-                                  await Printing.layoutPdf(
-                                    onLayout: (format) async => bytes,
-                                  );
-                                },
-                                icon: const Icon(Icons.print),
-                                label: const Text("Cetak Invoice"),
-                              ),
-                              const SizedBox(width: 10),
-                              ElevatedButton.icon(
-                                onPressed: () async {
-                                  final bytes = await _buildInvoicePdf(
-                                    noInvoice: noInvoice,
-                                    data: data,
-                                    sparepart: sparepart,
-                                    biayaJasa: biayaJasa,
-                                    subtotalSparepart: subtotalSparepart,
-                                    pajak: pajak,
-                                    totalAkhir: totalAkhir,
-                                  );
-                                  await Printing.sharePdf(
-                                    bytes: bytes,
-                                    filename: '$noInvoice.pdf',
-                                  );
-                                },
-                                icon: const Icon(Icons.picture_as_pdf),
-                                label: const Text("Unduh PDF"),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                      isMobile
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  noInvoice,
+                                  style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blueGrey),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final bytes = await _buildInvoicePdf(
+                                          noInvoice: noInvoice,
+                                          data: data,
+                                          sparepart: sparepart,
+                                          jenisServis: jenisServis,
+                                          itemsData: itemsData,
+                                          biayaJasa: biayaJasa,
+                                          subtotalSparepart: subtotalSparepart,
+                                          totalAkhir: totalAkhir,
+                                        );
+                                        await Printing.layoutPdf(
+                                          onLayout: (format) async => bytes,
+                                        );
+                                      },
+                                      icon: const Icon(Icons.print),
+                                      label: const Text("Cetak Invoice"),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final bytes = await _buildInvoicePdf(
+                                          noInvoice: noInvoice,
+                                          data: data,
+                                          sparepart: sparepart,
+                                          jenisServis: jenisServis,
+                                          itemsData: itemsData,
+                                          biayaJasa: biayaJasa,
+                                          subtotalSparepart: subtotalSparepart,
+                                          totalAkhir: totalAkhir,
+                                        );
+                                        await Printing.sharePdf(
+                                          bytes: bytes,
+                                          filename: '$noInvoice.pdf',
+                                        );
+                                      },
+                                      icon: const Icon(Icons.picture_as_pdf),
+                                      label: const Text("Unduh PDF"),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  noInvoice,
+                                  style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blueGrey),
+                                ),
+                                Row(
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final bytes = await _buildInvoicePdf(
+                                          noInvoice: noInvoice,
+                                          data: data,
+                                          sparepart: sparepart,
+                                          jenisServis: jenisServis,
+                                          itemsData: itemsData,
+                                          biayaJasa: biayaJasa,
+                                          subtotalSparepart: subtotalSparepart,
+                                          totalAkhir: totalAkhir,
+                                        );
+                                        await Printing.layoutPdf(
+                                          onLayout: (format) async => bytes,
+                                        );
+                                      },
+                                      icon: const Icon(Icons.print),
+                                      label: const Text("Cetak Invoice"),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final bytes = await _buildInvoicePdf(
+                                          noInvoice: noInvoice,
+                                          data: data,
+                                          sparepart: sparepart,
+                                          jenisServis: jenisServis,
+                                          itemsData: itemsData,
+                                          biayaJasa: biayaJasa,
+                                          subtotalSparepart: subtotalSparepart,
+                                          totalAkhir: totalAkhir,
+                                        );
+                                        await Printing.sharePdf(
+                                          bytes: bytes,
+                                          filename: '$noInvoice.pdf',
+                                        );
+                                      },
+                                      icon: const Icon(Icons.picture_as_pdf),
+                                      label: const Text("Unduh PDF"),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                       const SizedBox(height: 20),
 
                       Expanded(
                         child: Center(
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.8,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 30, vertical: 25),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                    color:
-                                        Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 12),
-                              ],
-                            ),
-                            child: SingleChildScrollView(
+                          child: SingleChildScrollView(
+                            child: Container(
+                              width: isMobile
+                                  ? screenWidth
+                                  : screenWidth * 0.8,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 16 : 30,
+                                  vertical: isMobile ? 18 : 25),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 12),
+                                ],
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // ===== HEADER INVOICE =====
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // KIRI: Logo + Info Bengkel
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Image.asset('assets/logo.png',
-                                              width: 100,
-                                              height: 100,
-                                              fit: BoxFit.contain),
-                                          const SizedBox(width: 15),
-                                          const Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text("JIMU MITSUBISHI",
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 18)),
-                                              SizedBox(height: 5),
-                                              Text("Bengkel Terbaik"),
-                                              SizedBox(height: 10),
-                                              Text(
-                                                  "JL. P DAMAR GG WIJAYA KESUMA NO.10"),
-                                              Text("BANDAR LAMPUNG"),
-                                              Text("Telp: 08213123412"),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                  isMobile
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // KIRI: Logo + Info Bengkel
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Image.asset('assets/logo.png',
+                                                    width: 70,
+                                                    height: 70,
+                                                    fit: BoxFit.contain),
+                                                const SizedBox(width: 12),
+                                                const Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text("JIMU MITSUBISHI",
+                                                          style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 16)),
+                                                      SizedBox(height: 5),
+                                                      Text("Bengkel Terbaik"),
+                                                      SizedBox(height: 10),
+                                                      Text(
+                                                          "JL. P DAMAR GG WIJAYA KESUMA NO.10"),
+                                                      Text("BANDAR LAMPUNG"),
+                                                      Text("Telp: 08213123412"),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 16),
+                                            // Info Invoice (di mobile pindah ke bawah)
+                                            Table(
+                                              defaultColumnWidth:
+                                                  const IntrinsicColumnWidth(),
+                                              children: [
+                                                _infoRow("No Invoice", noInvoice),
+                                                _infoRow("No SPK",
+                                                    data['no_spk'] ?? '-'),
+                                                _infoRow("Nama Pelanggan",
+                                                    data['nama_pelanggan'] ?? '-'),
+                                                _infoRow("Nama Montir",
+                                                    data['nama_montir'] ?? '-'),
+                                                _infoRow("No Plat",
+                                                    data['plat'] ?? '-'),
+                                                _infoRow("Kendaraan",
+                                                    data['kendaraan'] ?? '-'),
+                                              ],
+                                            ),
+                                          ],
+                                        )
+                                      : Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // KIRI: Logo + Info Bengkel
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Image.asset('assets/logo.png',
+                                                    width: 100,
+                                                    height: 100,
+                                                    fit: BoxFit.contain),
+                                                const SizedBox(width: 15),
+                                                const Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text("JIMU MITSUBISHI",
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 18)),
+                                                    SizedBox(height: 5),
+                                                    Text("Bengkel Terbaik"),
+                                                    SizedBox(height: 10),
+                                                    Text(
+                                                        "JL. P DAMAR GG WIJAYA KESUMA NO.10"),
+                                                    Text("BANDAR LAMPUNG"),
+                                                    Text("Telp: 08213123412"),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
 
-                                      // KANAN: Info Invoice
-                                      Table(
-                                        defaultColumnWidth:
-                                            const IntrinsicColumnWidth(),
-                                        children: [
-                                          _infoRow("No Invoice", noInvoice),
-                                          _infoRow("No SPK",
-                                              data['no_spk'] ?? '-'),
-                                          _infoRow("Nama Pelanggan",
-                                              data['nama_pelanggan'] ?? '-'),
-                                          _infoRow("Nama Montir",
-                                              data['nama_montir'] ?? '-'),
-                                          _infoRow(
-                                              "No Plat", data['plat'] ?? '-'),
-                                          _infoRow("Kendaraan",
-                                              data['kendaraan'] ?? '-'),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                            // KANAN: Info Invoice
+                                            Table(
+                                              defaultColumnWidth:
+                                                  const IntrinsicColumnWidth(),
+                                              children: [
+                                                _infoRow("No Invoice", noInvoice),
+                                                _infoRow("No SPK",
+                                                    data['no_spk'] ?? '-'),
+                                                _infoRow("Nama Pelanggan",
+                                                    data['nama_pelanggan'] ?? '-'),
+                                                _infoRow("Nama Montir",
+                                                    data['nama_montir'] ?? '-'),
+                                                _infoRow("No Plat",
+                                                    data['plat'] ?? '-'),
+                                                _infoRow("Kendaraan",
+                                                    data['kendaraan'] ?? '-'),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
 
                                   const SizedBox(height: 25),
 
-                                  // ===== HEADER TABEL =====
+                                  // ===== TABEL JENIS SERVIS =====
+                                  Text(
+                                    "Rincian Pekerjaan / Jasa Servis",
+                                    style: TextStyle(
+                                      fontSize: isMobile ? 13 : 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
                                   Row(
-                                    children: const [
+                                    children: [
                                       Expanded(
                                           child: Text("No.",
                                               style: TextStyle(
-                                                  color: Colors.blue))),
+                                                  fontSize: isMobile ? 11 : 13,
+                                                  color: Colors.blue,
+                                                  fontWeight: FontWeight.bold))),
                                       Expanded(
-                                          flex: 3,
-                                          child: Text("Deskripsi Sparepart",
+                                          flex: 4,
+                                          child: Text("Jenis Pekerjaan / Jasa Servis",
                                               style: TextStyle(
-                                                  color: Colors.blue))),
+                                                  fontSize: isMobile ? 11 : 13,
+                                                  color: Colors.blue,
+                                                  fontWeight: FontWeight.bold))),
                                       Expanded(
-                                          child: Text("Jumlah",
+                                          flex: 2,
+                                          child: Text("Biaya Jasa",
                                               style: TextStyle(
-                                                  color: Colors.blue))),
-                                      Expanded(
-                                          child: Text("Harga Satuan",
-                                              style: TextStyle(
-                                                  color: Colors.blue))),
-                                      Expanded(
-                                          child: Text("Subtotal",
-                                              style: TextStyle(
-                                                  color: Colors.blue))),
+                                                  fontSize: isMobile ? 11 : 13,
+                                                  color: Colors.blue,
+                                                  fontWeight: FontWeight.bold))),
                                     ],
                                   ),
                                   const Divider(),
+                                  ...List.generate(jenisServis.length, (i) {
+                                    final nama = jenisServis[i].toString();
+                                    
+                                    int hargaItem = 0;
+                                    bool itemDitemukan = false;
+                                    try {
+                                      final mapItem = itemsData.firstWhere(
+                                        (element) => (element as Map)['nama'] == nama, 
+                                        orElse: () => null
+                                      );
+                                      if (mapItem != null) {
+                                        hargaItem = (mapItem['harga'] ?? 0) as int;
+                                        itemDitemukan = true;
+                                      }
+                                    } catch(e) {
+                                      // Ignore
+                                    }
 
-                                  // ===== ISI TABEL =====
-                                  ...List.generate(sparepart.length, (i) {
-                                    final item = sparepart[i];
-                                    return invoiceRow(
-                                      (i + 1).toString().padLeft(2, '0'),
-                                      item['nama'] ?? '-',
-                                      "${item['jumlah'] ?? 0}",
-                                      _rp(item['harga_jual_saat_itu'] ?? 0),
-                                      _rp(item['subtotal'] ?? 0),
+                                    final hargaDefault = _hargaServisDefault[nama] ?? 0;
+                                    final harga = itemDitemukan ? hargaItem : hargaDefault;
+                                    final style = TextStyle(fontSize: isMobile ? 11 : 14);
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 5),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                              child: Text((i + 1).toString().padLeft(2, '0'), style: style)),
+                                          Expanded(flex: 4, child: Text(nama, style: style)),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Text(
+                                              (hargaDefault == 0 && harga == 0) ? "Sesuai Kesepakatan" : _rp(harga),
+                                              style: TextStyle(
+                                                fontSize: isMobile ? 11 : 14,
+                                                color: (hargaDefault == 0 && harga == 0) ? Colors.orange : Colors.black,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     );
                                   }),
                                   const Divider(),
                                   const SizedBox(height: 15),
 
-                                  // ===== RINCIAN BIAYA (Flutter UI) =====
+                                  // ===== TABEL SPAREPART =====
+                                  if (sparepart.isNotEmpty) ...[
+                                    Text(
+                                      "Rincian Sparepart",
+                                      style: TextStyle(
+                                        fontSize: isMobile ? 13 : 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                            child: Text("No.",
+                                                style: TextStyle(
+                                                    fontSize: isMobile ? 11 : 13,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold))),
+                                        Expanded(
+                                            flex: 3,
+                                            child: Text("Deskripsi Sparepart",
+                                                style: TextStyle(
+                                                    fontSize: isMobile ? 11 : 13,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold))),
+                                        Expanded(
+                                            child: Text("Jumlah",
+                                                style: TextStyle(
+                                                    fontSize: isMobile ? 11 : 13,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold))),
+                                        Expanded(
+                                            child: Text("Harga Satuan",
+                                                style: TextStyle(
+                                                    fontSize: isMobile ? 11 : 13,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold))),
+                                        Expanded(
+                                            child: Text("Subtotal",
+                                                style: TextStyle(
+                                                    fontSize: isMobile ? 11 : 13,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold))),
+                                      ],
+                                    ),
+                                    const Divider(),
+                                    ...List.generate(sparepart.length, (i) {
+                                      final item = sparepart[i];
+                                      return invoiceRow(
+                                        (i + 1).toString().padLeft(2, '0'),
+                                        item['nama'] ?? '-',
+                                        "${item['jumlah'] ?? 0}",
+                                        _rp(item['harga_jual_saat_itu'] ?? 0),
+                                        _rp(item['subtotal'] ?? 0),
+                                        isMobile: isMobile,
+                                      );
+                                    }),
+                                    const Divider(),
+                                    const SizedBox(height: 15),
+                                  ],
+
+                                  // ===== RINCIAN BIAYA (TANPA PPN) =====
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        Text("Subtotal Jasa Servis: ${_rp(biayaJasa)}"),
+                                        const SizedBox(height: 5),
                                         Text("Subtotal Sparepart: ${_rp(subtotalSparepart)}"),
-                                        const SizedBox(height: 5),
-                                        Text("Harga Jasa Servis: ${_rp(biayaJasa)}"),
-                                        const SizedBox(height: 5),
-                                        Text("Pajak (PPN 11%): ${_rp(pajak)}"),
                                       ],
                                     ),
                                   ),
@@ -643,16 +949,18 @@ class DetailServisPage extends StatelessWidget {
   }
 
   Widget invoiceRow(
-      String no, String desc, String qty, String price, String total) {
+      String no, String desc, String qty, String price, String total,
+      {bool isMobile = false}) {
+    final style = TextStyle(fontSize: isMobile ? 11 : 14);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Expanded(child: Text(no)),
-          Expanded(flex: 3, child: Text(desc)),
-          Expanded(child: Text(qty)),
-          Expanded(child: Text(price)),
-          Expanded(child: Text(total)),
+          Expanded(child: Text(no, style: style)),
+          Expanded(flex: 3, child: Text(desc, style: style)),
+          Expanded(child: Text(qty, style: style)),
+          Expanded(child: Text(price, style: style)),
+          Expanded(child: Text(total, style: style)),
         ],
       ),
     );

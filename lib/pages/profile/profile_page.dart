@@ -31,6 +31,10 @@ class _ProfilePageState
 
   bool isLoading = true;
 
+  bool obscurePasswordLama = true;
+  bool obscurePasswordBaru = true;
+  bool obscureKonfirmasiPassword = true;
+
   String docId = "";
   String oldPassword = "";
 
@@ -384,12 +388,26 @@ class _ProfilePageState
                         controller:
                             passwordLamaController,
 
-                        obscureText: true,
+                        obscureText: obscurePasswordLama,
 
                         decoration:
                             InputDecoration(
                           hintText:
                               "Masukkan password lama",
+
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePasswordLama
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscurePasswordLama =
+                                    !obscurePasswordLama;
+                              });
+                            },
+                          ),
 
                           border:
                               OutlineInputBorder(
@@ -423,12 +441,26 @@ class _ProfilePageState
                         controller:
                             passwordBaruController,
 
-                        obscureText: true,
+                        obscureText: obscurePasswordBaru,
 
                         decoration:
                             InputDecoration(
                           hintText:
                               "Masukkan password baru",
+
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePasswordBaru
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscurePasswordBaru =
+                                    !obscurePasswordBaru;
+                              });
+                            },
+                          ),
 
                           border:
                               OutlineInputBorder(
@@ -462,12 +494,26 @@ class _ProfilePageState
                         controller:
                             konfirmasiPasswordController,
 
-                        obscureText: true,
+                        obscureText: obscureKonfirmasiPassword,
 
                         decoration:
                             InputDecoration(
                           hintText:
                               "Masukkan konfirmasi password",
+
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureKonfirmasiPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscureKonfirmasiPassword =
+                                    !obscureKonfirmasiPassword;
+                              });
+                            },
+                          ),
 
                           border:
                               OutlineInputBorder(

@@ -73,6 +73,8 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
     "Overhaul Automatic Transmisi": 1440,  // 1 hari
   };
 
+  final Map<String, TextEditingController> jenisServisHargaControllers = {};
+
   int get totalHarga {
     int total = 0;
     for (var item in selectedSpareparts) {
@@ -81,29 +83,49 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
     return total;
   }
 
-  // Dipanggil setiap kali centang/uncentang jenis servis
-  void _updateBiayaJasa() {
-    int total = 0;
-    for (var servis in selectedJenisServis) {
-      total += jenisServisDanHarga[servis] ?? 0;
+  // Sinkronisasi controller harga untuk tiap jenis servis yang dipilih
+  void _syncJenisServisHargaControllers() {
+    final currentKeys = jenisServisHargaControllers.keys.toList();
+    for (var key in currentKeys) {
+      if (!selectedJenisServis.contains(key)) {
+        jenisServisHargaControllers[key]?.dispose();
+        jenisServisHargaControllers.remove(key);
+      }
     }
-    biayaJasaController.text = total.toString();
+
+    for (var servis in selectedJenisServis) {
+      if (!jenisServisHargaControllers.containsKey(servis)) {
+        int defaultHarga = jenisServisDanHarga[servis] ?? 0;
+        String formattedText = defaultHarga > 0 ? _formatRupiah(defaultHarga) : "0";
+        jenisServisHargaControllers[servis] = TextEditingController(text: formattedText);
+      }
+    }
+
+    _recalculateTotalBiayaJasa();
+  }
+
+  // Hitung ulang total biaya jasa dari penjumlahan masing-masing jenis servis
+  void _recalculateTotalBiayaJasa() {
+    int total = 0;
+    for (var controller in jenisServisHargaControllers.values) {
+      String cleanStr = controller.text.replaceAll('.', '').replaceAll(',', '');
+      total += int.tryParse(cleanStr) ?? 0;
+    }
+    biayaJasaController.text = _formatRupiah(total);
   }
 
   // Auto-isi total estimasi waktu (menit) dari jenis servis yang dipilih.
-  // Tetap bisa diedit manual oleh user lewat estimasiController.
   void _updateEstimasi() {
     int totalMenit = 0;
     for (var servis in selectedJenisServis) {
       totalMenit += jenisServisDanEstimasi[servis] ?? 0;
     }
-    // Kalau belum ada servis dipilih, default 30 menit
     estimasiController.text = (totalMenit == 0 ? 30 : totalMenit).toString();
   }
 
   // Dipanggil bareng tiap kali user centang/uncentang FilterChip jenis servis
   void _onJenisServisChanged() {
-    _updateBiayaJasa();
+    _syncJenisServisHargaControllers();
     _updateEstimasi();
   }
 
@@ -229,17 +251,23 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
       final estimasiLabel = _formatEstimasi(estimasiMenit);
 
       List<Map<String, dynamic>> itemsServisArray = selectedJenisServis.map((item) {
-        // Ambil waktu per item dari map jenisServisDanEstimasi
         final estimasiPerItem = (jenisServisDanEstimasi[item] ?? 0).toString(); 
-        
+        final controller = jenisServisHargaControllers[item];
+        int hargaItem = 0;
+        if (controller != null) {
+          String cleanStr = controller.text.replaceAll('.', '').replaceAll(',', '');
+          hargaItem = int.tryParse(cleanStr) ?? 0;
+        }
+
         return {
           'nama': item,
-          'estimasi': estimasiPerItem, // <--- SEKARANG PAKAI WAKTU SPESIFIK
+          'harga': hargaItem,
+          'estimasi': estimasiPerItem,
           'status': 'Belum Mulai',
         };
       }).toList();
 
-      final biayaJasa = int.tryParse(biayaJasaController.text.replaceAll('.', '')) ?? 0;
+      final biayaJasa = int.tryParse(biayaJasaController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
 
       await FirebaseFirestore.instance.collection('spk').add({
         'no_spk': noSpk,
@@ -335,6 +363,7 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
             const SizedBox(height: 20),
 
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -409,24 +438,27 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
 
                   const SizedBox(height: 15),
 
-                  DataTable(
-                    border: TableBorder.all(color: Colors.grey.shade300),
-                    columns: const [
-                      DataColumn(label: Text("Nama Pelanggan")),
-                      DataColumn(label: Text("No. Plat")),
-                      DataColumn(label: Text("Kendaraan")),
-                      DataColumn(label: Text("KM Terakhir")),
-                    ],
-                    rows: selectedPelanggan == null
-                        ? []
-                        : [
-                            DataRow(cells: [
-                              DataCell(Text(selectedPelanggan!['nama'])),
-                              DataCell(Text(selectedPelanggan!['plat'])),
-                              DataCell(Text(selectedPelanggan!['kendaraan'])),
-                              DataCell(Text(selectedPelanggan!['km'].toString())),
-                            ])
-                          ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      border: TableBorder.all(color: Colors.grey.shade300),
+                      columns: const [
+                        DataColumn(label: Text("Nama Pelanggan")),
+                        DataColumn(label: Text("No. Plat")),
+                        DataColumn(label: Text("Kendaraan")),
+                        DataColumn(label: Text("KM Terakhir")),
+                      ],
+                      rows: selectedPelanggan == null
+                          ? []
+                          : [
+                              DataRow(cells: [
+                                DataCell(Text(selectedPelanggan!['nama'])),
+                                DataCell(Text(selectedPelanggan!['plat'])),
+                                DataCell(Text(selectedPelanggan!['kendaraan'])),
+                                DataCell(Text(selectedPelanggan!['km'].toString())),
+                              ])
+                            ],
+                    ),
                   ),
 
                   const SizedBox(height: 25),
@@ -501,19 +533,116 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 10),
-                  label("Biaya Jasa Servis (Rp)"),
+                  // INPUT HARGA PER JENIS SERVIS YANG DIPILIH
+                  if (selectedJenisServis.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.edit_note, color: Colors.blue, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                "Rincian Harga Per Jenis Servis",
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            "Anda dapat memasukkan atau mengubah harga untuk masing-masing jenis servis di bawah ini:",
+                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                          ),
+                          const SizedBox(height: 12),
+                          ...selectedJenisServis.map((servis) {
+                            final isFleksibel = (jenisServisDanHarga[servis] ?? 0) == 0;
+                            final controller = jenisServisHargaControllers[servis];
+                            if (controller == null) return const SizedBox.shrink();
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          servis,
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                        ),
+                                        if (isFleksibel)
+                                          Container(
+                                            margin: const EdgeInsets.only(top: 2),
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.shade100,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              "Harga Fleksibel",
+                                              style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      controller: controller,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly, RupiahInputFormatter()],
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _recalculateTotalBiayaJasa();
+                                        });
+                                      },
+                                      decoration: InputDecoration(
+                                        prefixText: "Rp ",
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        fillColor: Colors.white,
+                                        filled: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 15),
+                  label("Total Biaya Jasa Servis (Rp)"),
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: biayaJasaController,
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly, RupiahInputFormatter()],
+                          onChanged: (val) {
+                            setState(() {});
+                          },
                           decoration: InputDecoration(
                             prefixText: "Rp ",
                             hintText: "0",
-                            helperText: "Otomatis terisi saat pilih servis — bisa diedit manual untuk harga fleksibel",
+                            helperText: "Total otomatis terhitung dari penjumlahan rincian harga jenis servis di atas",
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
@@ -574,12 +703,16 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      selectedDate == null
-                                          ? "Pilih Tanggal"
-                                          : "${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}",
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                    Expanded(
+                                      child: Text(
+                                        selectedDate == null
+                                            ? "Pilih Tanggal"
+                                            : "${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}",
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
+                                    const SizedBox(width: 4),
                                     const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
                                   ],
                                 ),
@@ -615,10 +748,14 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      selectedTime == null ? "Pilih Waktu" : selectedTime!.format(context),
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                    Expanded(
+                                      child: Text(
+                                        selectedTime == null ? "Pilih Waktu" : selectedTime!.format(context),
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
+                                    const SizedBox(width: 4),
                                     const Icon(Icons.access_time, color: Colors.grey, size: 20),
                                   ],
                                 ),
@@ -663,19 +800,29 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
 
                   // ===== TOTAL & TOMBOL =====
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade800,
                       borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 6,
+                          offset: Offset(0, 3),
+                        )
+                      ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        bool isSmall = constraints.maxWidth < 650;
+
+                        Widget infoTotal = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text("Total Biaya Sparepart", style: TextStyle(color: Colors.white70)),
-                            const SizedBox(height: 5),
+                            const Text("Total Biaya Sparepart", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                            const SizedBox(height: 4),
                             Text(
                               "Rp ${_formatRupiah(totalHarga)}",
                               style: const TextStyle(
@@ -685,36 +832,100 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
                               ),
                             ),
                           ],
-                        ),
-                        Row(
+                        );
+
+                        Widget buttons = Row(
+                          mainAxisSize: isSmall ? MainAxisSize.max : MainAxisSize.min,
                           children: [
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
+                            if (isSmall)
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  onPressed: widget.onBack,
+                                  child: const Text("Batal", style: TextStyle(fontWeight: FontWeight.bold)),
+                                ),
+                              )
+                            else
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: widget.onBack,
+                                child: const Text("Batal", style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
-                              onPressed: widget.onBack,
-                              child: const Text("Batal"),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.blue.shade800,
+                            const SizedBox(width: 12),
+                            if (isSmall)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.blue.shade900,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  onPressed: isLoading ? null : simpanSPK,
+                                  icon: isLoading
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.save),
+                                  label: Text(
+                                    isLoading ? "Menyimpan..." : "Simpan SPK",
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              )
+                            else
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.blue.shade900,
+                                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: isLoading ? null : simpanSPK,
+                                icon: isLoading
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.save),
+                                label: Text(
+                                  isLoading ? "Menyimpan..." : "Simpan Data Servis",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
                               ),
-                              onPressed: isLoading ? null : simpanSPK,
-                              icon: isLoading
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.save),
-                              label: Text(isLoading ? "Menyimpan..." : "Simpan Data Servis"),
-                            ),
                           ],
-                        ),
-                      ],
+                        );
+
+                        return isSmall
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  infoTotal,
+                                  const SizedBox(height: 16),
+                                  buttons,
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  infoTotal,
+                                  buttons,
+                                ],
+                              );
+                      },
                     ),
                   ),
                 ],
@@ -1306,7 +1517,35 @@ class _TambahSpkPageState extends State<TambahSpkPage> {
   }
 }
 
-// ===== HELPER WIDGET =====
+// ===== HELPER WIDGET & FORMATTER =====
+
+class RupiahInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    String digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digitsOnly.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    int value = int.tryParse(digitsOnly) ?? 0;
+    String formatted = value.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class _TableHeader extends StatelessWidget {
   final String text;
