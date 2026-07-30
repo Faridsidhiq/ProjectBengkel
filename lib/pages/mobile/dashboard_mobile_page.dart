@@ -21,7 +21,17 @@ class DashboardMobilePage extends StatefulWidget {
 
 class _DashboardMobilePageState extends State<DashboardMobilePage> {
   final TextEditingController _searchLayananController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _keywordLayanan = "";
+
+  void _navigateTo(Widget page) {
+    _searchFocusNode.unfocus();
+    FocusScope.of(context).unfocus();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
+  }
 
   String _getGambarKategori(String kategori) {
     return "assets/shell_yellow.png"; 
@@ -256,6 +266,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
   @override
   void dispose() {
     _searchLayananController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -363,10 +374,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
     return Stack(
       children: [
         IconButton(
-          onPressed: () {
-            FocusScope.of(context).unfocus();
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotifikasiMobilePage()));
-          },
+          onPressed: () => _navigateTo(const NotifikasiMobilePage()),
           icon: const Icon(Icons.notifications_active, color: Colors.orange),
         ),
         if (adaNotifBaru)
@@ -384,13 +392,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
 ),
                     // FITUR BARU: Ikon User bisa diklik dan lompat ke AkunMobilePage
                     InkWell(
-                      onTap: () {
-                        FocusScope.of(context).unfocus();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AkunMobilePage()),
-                        );
-                      },
+                      onTap: () => _navigateTo(const AkunMobilePage()),
                       borderRadius: BorderRadius.circular(50),
                       child: CircleAvatar(
                         backgroundColor: Colors.orange.shade100,
@@ -406,8 +408,10 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
                   controller: _searchLayananController,
+                  focusNode: _searchFocusNode,
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) {
+                    _searchFocusNode.unfocus();
                     FocusScope.of(context).unfocus();
                   },
                   onChanged: (value) {
@@ -530,31 +534,17 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                           return InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
-                              FocusScope.of(context).unfocus();
                               final title = layananTerfilter[index]["title"];
                               
                               if (title == "Keluhan") {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const KeluhanMobilePage()),
-                                );
+                                _navigateTo(const KeluhanMobilePage());
                               } 
                               else if (title == "Lainnya") {
                                 // Membawa master data semuaLayanan ke halaman SemuaPerawatanPage
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SemuaPerawatanPage(daftarLayanan: semuaLayanan),
-                                  ),
-                                );
+                                _navigateTo(SemuaPerawatanPage(daftarLayanan: semuaLayanan));
                               }
                               else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DetailPerawatanPage(dataLayanan: layananTerfilter[index]),
-                                  ),
-                                );
+                                _navigateTo(DetailPerawatanPage(dataLayanan: layananTerfilter[index]));
                               }
                             },
                             child: Container(
@@ -597,13 +587,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
-                    onTap: () {
-                      FocusScope.of(context).unfocus();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const KatalogBarangPage()),
-                      );
-                    },
+                    onTap: () => _navigateTo(const KatalogBarangPage()),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -651,13 +635,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
                       itemBuilder: (context, index) {
                         if (index == docs.length) {
                           return InkWell(
-                            onTap: () {
-                              FocusScope.of(context).unfocus();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const KatalogBarangPage()),
-                              );
-                            },
+                            onTap: () => _navigateTo(const KatalogBarangPage()),
                             child: Container(
                               width: 130,
                               margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -916,17 +894,10 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
-          FocusScope.of(context).unfocus();
           if (index == 1) {
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (_) => SimulasiBiayaPage(daftarLayanan: semuaLayanan)),
-            );
+            _navigateTo(SimulasiBiayaPage(daftarLayanan: semuaLayanan));
           } else if (index == 2) {
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (_) => const AkunMobilePage()),
-            );
+            _navigateTo(const AkunMobilePage());
           }
         },
         items: const [
@@ -940,13 +911,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
 
   Widget _buildLacakServisBanner(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const TrackingPelangganPage()),
-        );
-      },
+      onTap: () => _navigateTo(const TrackingPelangganPage()),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         padding: const EdgeInsets.all(14),
@@ -1021,13 +986,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
     
 
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const TrackingPelangganPage()),
-        );
-      },
+      onTap: () => _navigateTo(const TrackingPelangganPage()),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         padding: const EdgeInsets.all(16),
@@ -1226,13 +1185,7 @@ class _DashboardMobilePageState extends State<DashboardMobilePage> {
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: () {
-                  FocusScope.of(context).unfocus();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TrackingPelangganPage()),
-                  );
-                },
+                onPressed: () => _navigateTo(const TrackingPelangganPage()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.green.shade800,
