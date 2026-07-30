@@ -109,12 +109,10 @@ class _ManajemenAkunPageState
   @override
   Widget build(BuildContext context) {
 
-    return SingleChildScrollView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
 
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
+      children: [
 
           // ================= TITLE =================
 
@@ -193,32 +191,22 @@ class _ManajemenAkunPageState
 
           // ================= TABLE =================
 
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade400),
-            ),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
 
-            child: LayoutBuilder(
-              builder: (context, constraints) {
+              child: StreamBuilder(
+                stream: FirebaseFirestore.instance
+                    .collection('manajemen_akun')
+                    .orderBy('created_at', descending: false)
+                    .snapshots(),
 
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: constraints.maxWidth,
-                    ),
-
-                    child: StreamBuilder(
-                      stream: FirebaseFirestore.instance
-                          .collection('manajemen_akun')
-                          .orderBy('created_at', descending: false)
-                          .snapshots(),
-
-                      builder: (context, snapshot) {
+                builder: (context, snapshot) {
 
                         if (!snapshot.hasData) {
                           return const Center(
@@ -253,7 +241,16 @@ class _ManajemenAkunPageState
                           );
                         }
 
-                        return DataTable(
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minWidth: constraints.maxWidth,
+                                  ),
+                                  child: DataTable(
 
                           border: TableBorder.all(
                             color: Colors.grey.shade400,
@@ -408,16 +405,17 @@ class _ManajemenAkunPageState
                               );
                             },
                           ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
-                  ),
-                );
-              },
             ),
           ),
         ],
-      ),
     );
   }
 }
